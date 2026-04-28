@@ -1,0 +1,76 @@
+.openalex-biblio-box {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.openalex-biblio-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.openalex-biblio-row-search {
+  flex-wrap: wrap;
+}
+
+#openalex-biblio-search-type {
+  min-width: 140px;
+  padding: 6px 10px;
+}
+
+#openalex-biblio-query {
+  flex: 1 1 320px;
+  max-width: 520px;
+  padding: 6px 10px;
+}
+
+.openalex-biblio-help {
+  margin-top: 8px;
+  opacity: .75;
+  font-size: 12px;
+}
+
+.openalex-biblio-results {
+  margin: 10px 0 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid rgba(0,0,0,.06);
+}
+
+.openalex-biblio-item,
+.openalex-biblio-info {
+  padding: 10px 6px;
+  border-bottom: 1px solid rgba(0,0,0,.06);
+}
+
+.openalex-biblio-item {
+  cursor: pointer;
+}
+
+.openalex-biblio-item:hover {
+  background: rgba(0,0,0,.03);
+}
+
+.openalex-biblio-title {
+  font-weight: 600;
+}
+
+.openalex-biblio-doi {
+  margin-top: 4px;
+  opacity: .75;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.openalex-biblio-meta {
+  opacity: .85;
+  font-size: 12px;
+}
+
+.openalex-biblio-empty {
+  padding: 10px 6px;
+  opacity: .75;
+}
