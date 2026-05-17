@@ -215,18 +215,82 @@ class Tainacan_OpenAlex_Biblio_MVP {
 
     public function ajax_get_settings_mapping() {
         $this->require_ajax_perms();
-
+    
         $mapping = [
-            'title'   => (int) get_option('tainacan_option_openalex_map_title', 0),
-            'authors' => (int) get_option('tainacan_option_openalex_map_authors', 0),
-            'year'    => (int) get_option('tainacan_option_openalex_map_year', 0),
-            'doi'     => (int) get_option('tainacan_option_openalex_map_doi', 0),
-            'venue'   => (int) get_option('tainacan_option_openalex_map_venue', 0),
-            'url'     => (int) get_option('tainacan_option_openalex_map_url', 0),
-            'abnt'    => (int) get_option('tainacan_option_openalex_map_abnt', 0),
+            'title'   => $this->get_valid_mapping_metadatum_id('openalex_map_title', [
+                'Tainacan\\Metadata_Types\\Core_Title',
+                'Tainacan\\Metadata_Types\\Text',
+            ]),
+            'authors' => $this->get_valid_mapping_metadatum_id('openalex_map_authors', [
+                'Tainacan\\Metadata_Types\\Text',
+                'Tainacan\\Metadata_Types\\Textarea',
+                'Tainacan\\Metadata_Types\\Selectbox',
+            ]),
+            'year'    => $this->get_valid_mapping_metadatum_id('openalex_map_year', [
+                'Tainacan\\Metadata_Types\\Text',
+                'Tainacan\\Metadata_Types\\Numeric',
+            ]),
+            'doi'     => $this->get_valid_mapping_metadatum_id('openalex_map_doi', [
+                'Tainacan\\Metadata_Types\\Text',
+                'Tainacan\\Metadata_Types\\URL',
+            ]),
+            'venue'   => $this->get_valid_mapping_metadatum_id('openalex_map_venue', [
+                'Tainacan\\Metadata_Types\\Text',
+                'Tainacan\\Metadata_Types\\Textarea',
+                'Tainacan\\Metadata_Types\\Selectbox',
+            ]),
+            'url'     => $this->get_valid_mapping_metadatum_id('openalex_map_url', [
+                'Tainacan\\Metadata_Types\\Text',
+                'Tainacan\\Metadata_Types\\URL',
+            ]),
+            'abnt'    => $this->get_valid_mapping_metadatum_id('openalex_map_abnt', [
+                'Tainacan\\Metadata_Types\\Text',
+                'Tainacan\\Metadata_Types\\Textarea',
+                'Tainacan\\Metadata_Types\\URL',
+            ]),
         ];
-
+    
         wp_send_json_success(['mapping' => $mapping]);
+    }
+
+    private function get_valid_mapping_metadatum_id(string $option_id, array $allowed_metadata_types): int {
+        $metadatum_id = (int) get_option('tainacan_option_' . $option_id, 0);
+    
+        if ($metadatum_id <= 0) {
+            return 0;
+        }
+    
+        $metadata_type = $this->get_metadatum_type_class($metadatum_id);
+    
+        if ($metadata_type === '') {
+            return 0;
+        }
+    
+        return in_array($metadata_type, $allowed_metadata_types, true)
+            ? $metadatum_id
+            : 0;
+    }
+    
+    private function get_metadatum_type_class(int $metadatum_id): string {
+        if ($metadatum_id <= 0) {
+            return '';
+        }
+    
+        if (!class_exists('\\Tainacan\\Entities\\Metadatum')) {
+            return '';
+        }
+    
+        try {
+            $metadatum = new \Tainacan\Entities\Metadatum($metadatum_id);
+        } catch (\Throwable $e) {
+            return '';
+        }
+    
+        if (!method_exists($metadatum, 'get_metadata_type')) {
+            return '';
+        }
+    
+        return (string) $metadatum->get_metadata_type();
     }
 
     public function ajax_work_search() {
