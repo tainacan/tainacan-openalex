@@ -79,11 +79,17 @@ class Tainacan_OpenAlex_Biblio_MVP {
     // =========================================
     public function register_admin_hooks() {
         if (!function_exists('tainacan_register_admin_hook')) return;
-
+    
+        $collection_id = $this->get_opt_int('openalex_references_collection_id');
+        if ($collection_id <= 0) return;
+    
         tainacan_register_admin_hook(
             'item',
             [$this, 'render_item_hook'],
-            'begin-left'
+            'begin-left',
+            [
+                'collectionId' => (string) $collection_id,
+            ]
         );
     }
 
@@ -657,6 +663,11 @@ class Tainacan_OpenAlex_Biblio_MVP {
     private function get_opt_str($id) {
         return (string) get_option('tainacan_option_' . $id, '');
     }
+
+    private function get_opt_int($id) {
+        return (int) get_option('tainacan_option_' . $id, 0);
+    }
+
 }
 
 new Tainacan_OpenAlex_Biblio_MVP();
