@@ -1,9 +1,14 @@
 <?php
 /**
- * Plugin Name: Tainacan OpenAlex Bibliografia (Form Hook)
- * Description: Busca dados bibliográficos no OpenAlex e preenche metadados no Tainacan (UI via Admin Form Hook).
+ * Plugin Name: Tainacan OpenAlex
+ * Description: Busca dados bibliográficos no OpenAlex e preenche metadados no Tainacan.
  * Version: 0.4.0
  * License: GPL v3 or later
+ * Requires at least: 6.0
+ * Tested up to: 7.0
+ * Requires PHP: 7.4
+ * Stable tag: 0.4.0
+ * Requires Plugins: tainacan
  */
 
 namespace Tainacan {
