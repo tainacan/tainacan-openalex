@@ -64,7 +64,7 @@ class Tainacan_OpenAlex_Biblio_MVP {
             'tainacan-openalex-biblio',
             $url . 'assets/openalex-biblio.js',
             ['jquery'],
-            '0.4.0',
+            '0.4.1',
             true
         );
 
@@ -516,13 +516,14 @@ $settings->create_tainacan_setting([
         $venue = $w['primary_location']['source']['display_name'] ?? null;
 
         $out = [
-            'id'      => $w['id'] ?? null,
-            'title'   => $w['title'] ?? null,
-            'year'    => $w['publication_year'] ?? null,
-            'doi'     => $w['doi'] ?? null,
-            'venue'   => $venue,
-            'authors' => implode('; ', $authors),
-            'url'     => $w['id'] ?? null,
+            'id'           => $w['id'] ?? null,
+            'title'        => $w['title'] ?? null,
+            'year'         => $w['publication_year'] ?? null,
+            'doi'          => $w['doi'] ?? null,
+            'venue'        => $venue,
+            'authors'      => implode('; ', $authors),
+            'authors_list' => array_values($authors),
+            'url'          => $w['id'] ?? null,
         ];
 
         $out['abnt'] = $this->format_abnt_basic($out);
