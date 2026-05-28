@@ -97,9 +97,9 @@ class Tainacan_OpenAlex_Biblio_MVP {
         ob_start();
         ?>
         <div class="field form-hook-region">
-            <h4 style="margin:0 0 .5rem 0;"><?php esc_html_e('OpenAlex (Bibliografia)', 'tainacan-openalex-biblio'); ?></h4>
+            <h4 style="margin:0 0 .5rem 0;"><?php esc_html_e('OpenAlex (Bibliografia)', 'tainacan-openalex'); ?></h4>
             <p class="help" style="margin:.25rem 0 1rem 0;opacity:.85;">
-                <?php esc_html_e('Pesquise e clique em um resultado para preencher os metadados deste item.', 'tainacan-openalex-biblio'); ?>
+                <?php esc_html_e('Pesquise e clique em um resultado para preencher os metadados deste item.', 'tainacan-openalex'); ?>
             </p>
 
             <!-- ✅ root controlado pelo JS -->
@@ -111,10 +111,10 @@ class Tainacan_OpenAlex_Biblio_MVP {
 
     private function get_collections_select_options_html(): string {
     if (!class_exists('\\Tainacan\\Repositories\\Collections')) {
-        return '<option value="">' . esc_html__('Selecione uma coleção', 'tainacan-openalex-biblio') . '</option>';
+        return '<option value="">' . esc_html__('Selecione uma coleção', 'tainacan-openalex') . '</option>';
     }
 
-    $options = '<option value="">' . esc_html__('Selecione uma coleção', 'tainacan-openalex-biblio') . '</option>';
+    $options = '<option value="">' . esc_html__('Selecione uma coleção', 'tainacan-openalex') . '</option>';
 
     try {
         $collections_repo = \Tainacan\Repositories\Collections::get_instance();
@@ -143,12 +143,12 @@ class Tainacan_OpenAlex_Biblio_MVP {
 
 private function get_metadata_select_options_html(array $allowed_metadata_types = []): string {
     if (!class_exists('\\Tainacan\\Repositories\\Metadata')) {
-        return '<option value="0">' . esc_html__('Selecione um metadado', 'tainacan-openalex-biblio') . '</option>';
+        return '<option value="0">' . esc_html__('Selecione um metadado', 'tainacan-openalex') . '</option>';
     }
 
     $collection_id = (int) get_option('tainacan_option_openalex_references_collection_id', 0);
 
-    $options = '<option value="0">' . esc_html__('Selecione um metadado', 'tainacan-openalex-biblio') . '</option>';
+    $options = '<option value="0">' . esc_html__('Selecione um metadado', 'tainacan-openalex') . '</option>';
 
     if ($collection_id <= 0) {
         return $options;
@@ -198,10 +198,10 @@ private function get_metadata_select_options_html(array $allowed_metadata_types 
         // Seção nova na Settings Page do Tainacan
         add_settings_section(
             'openalex_biblio_settings_section',
-            __('OpenAlex Biblio', 'tainacan-openalex-biblio'),
+            __('OpenAlex Biblio', 'tainacan-openalex'),
             function () {
                 echo '<p class="settings-section-description">';
-                esc_html_e('Configure a coleção de referências e o mapeamento dos campos (OpenAlex → Metadados).', 'tainacan-openalex-biblio');
+                esc_html_e('Configure a coleção de referências e o mapeamento dos campos (OpenAlex → Metadados).', 'tainacan-openalex');
                 echo '</p>';
             },
             'tainacan_settings'
@@ -213,30 +213,30 @@ private function get_metadata_select_options_html(array $allowed_metadata_types 
 
         $settings->create_tainacan_setting([
             'id'               => 'openalex_references_collection_id',
-            'title'            => __('Coleção de Referências', 'tainacan-openalex-biblio'),
+            'title'            => __('Coleção de Referências', 'tainacan-openalex'),
             'section'          => 'openalex_biblio_settings_section',
             'type'             => 'integer',
             'input_type'       => 'select',
             'input_inner_html' => $this->get_collections_select_options_html(),
-            'description'      => __('Selecione a coleção do Tainacan onde ficam as referências bibliográficas.', 'tainacan-openalex-biblio'),
+            'description'      => __('Selecione a coleção do Tainacan onde ficam as referências bibliográficas.', 'tainacan-openalex'),
             'default'          => 0,
             'sanitize_callback'=> 'absint'
         ]);
 
         $settings->create_tainacan_setting([
             'id'          => 'openalex_api_key',
-            'title'       => __('OpenAlex API Key (opcional)', 'tainacan-openalex-biblio'),
+            'title'       => __('OpenAlex API Key (opcional)', 'tainacan-openalex'),
             'section'     => 'openalex_biblio_settings_section',
             'type'        => 'string',
             'input_type'  => 'password',
-            'description' => __('Se você tiver API Key, informe aqui. Caso contrário, deixe vazio.', 'tainacan-openalex-biblio'),
+            'description' => __('Se você tiver API Key, informe aqui. Caso contrário, deixe vazio.', 'tainacan-openalex'),
             'default'     => ''
         ]);
 
         // Mapeamento (IDs de metadados)
 $settings->create_tainacan_setting([
     'id'               => 'openalex_map_title',
-    'title'            => __('Mapeamento: Title → Metadado', 'tainacan-openalex-biblio'),
+    'title'            => __('Mapeamento: Title → Metadado', 'tainacan-openalex'),
     'section'          => 'openalex_biblio_settings_section',
     'type'             => 'integer',
     'input_type'       => 'select',
@@ -244,14 +244,14 @@ $settings->create_tainacan_setting([
         'Tainacan\\Metadata_Types\\Core_Title',
         'Tainacan\\Metadata_Types\\Text',
     ]),
-    'description'      => __('Selecione o metadado da coleção que receberá o TÍTULO.', 'tainacan-openalex-biblio'),
+    'description'      => __('Selecione o metadado da coleção que receberá o TÍTULO.', 'tainacan-openalex'),
     'default'          => 0,
     'sanitize_callback'=> 'absint'
 ]);
 
 $settings->create_tainacan_setting([
     'id'               => 'openalex_map_authors',
-    'title'            => __('Mapeamento: Authors → Metadado', 'tainacan-openalex-biblio'),
+    'title'            => __('Mapeamento: Authors → Metadado', 'tainacan-openalex'),
     'section'          => 'openalex_biblio_settings_section',
     'type'             => 'integer',
     'input_type'       => 'select',
@@ -260,14 +260,14 @@ $settings->create_tainacan_setting([
         'Tainacan\\Metadata_Types\\Textarea',
         'Tainacan\\Metadata_Types\\Selectbox',
     ]),
-    'description'      => __('Selecione o metadado da coleção que receberá os AUTORES.', 'tainacan-openalex-biblio'),
+    'description'      => __('Selecione o metadado da coleção que receberá os AUTORES.', 'tainacan-openalex'),
     'default'          => 0,
     'sanitize_callback'=> 'absint'
 ]);
 
 $settings->create_tainacan_setting([
     'id'               => 'openalex_map_year',
-    'title'            => __('Mapeamento: Year → Metadado', 'tainacan-openalex-biblio'),
+    'title'            => __('Mapeamento: Year → Metadado', 'tainacan-openalex'),
     'section'          => 'openalex_biblio_settings_section',
     'type'             => 'integer',
     'input_type'       => 'select',
@@ -275,14 +275,14 @@ $settings->create_tainacan_setting([
         'Tainacan\\Metadata_Types\\Text',
         'Tainacan\\Metadata_Types\\Numeric',
     ]),
-    'description'      => __('Selecione o metadado da coleção que receberá o ANO.', 'tainacan-openalex-biblio'),
+    'description'      => __('Selecione o metadado da coleção que receberá o ANO.', 'tainacan-openalex'),
     'default'          => 0,
     'sanitize_callback'=> 'absint'
 ]);
 
 $settings->create_tainacan_setting([
     'id'               => 'openalex_map_doi',
-    'title'            => __('Mapeamento: DOI → Metadado', 'tainacan-openalex-biblio'),
+    'title'            => __('Mapeamento: DOI → Metadado', 'tainacan-openalex'),
     'section'          => 'openalex_biblio_settings_section',
     'type'             => 'integer',
     'input_type'       => 'select',
@@ -290,14 +290,14 @@ $settings->create_tainacan_setting([
         'Tainacan\\Metadata_Types\\Text',
         'Tainacan\\Metadata_Types\\URL',
     ]),
-    'description'      => __('Selecione o metadado da coleção que receberá o DOI.', 'tainacan-openalex-biblio'),
+    'description'      => __('Selecione o metadado da coleção que receberá o DOI.', 'tainacan-openalex'),
     'default'          => 0,
     'sanitize_callback'=> 'absint'
 ]);
 
 $settings->create_tainacan_setting([
     'id'               => 'openalex_map_venue',
-    'title'            => __('Mapeamento: Venue → Metadado', 'tainacan-openalex-biblio'),
+    'title'            => __('Mapeamento: Venue → Metadado', 'tainacan-openalex'),
     'section'          => 'openalex_biblio_settings_section',
     'type'             => 'integer',
     'input_type'       => 'select',
@@ -306,14 +306,14 @@ $settings->create_tainacan_setting([
         'Tainacan\\Metadata_Types\\Textarea',
         'Tainacan\\Metadata_Types\\Selectbox',
     ]),
-    'description'      => __('Selecione o metadado da coleção que receberá o PERIÓDICO/VEÍCULO.', 'tainacan-openalex-biblio'),
+    'description'      => __('Selecione o metadado da coleção que receberá o PERIÓDICO/VEÍCULO.', 'tainacan-openalex'),
     'default'          => 0,
     'sanitize_callback'=> 'absint'
 ]);
 
 $settings->create_tainacan_setting([
     'id'               => 'openalex_map_url',
-    'title'            => __('Mapeamento: URL → Metadado', 'tainacan-openalex-biblio'),
+    'title'            => __('Mapeamento: URL → Metadado', 'tainacan-openalex'),
     'section'          => 'openalex_biblio_settings_section',
     'type'             => 'integer',
     'input_type'       => 'select',
@@ -321,14 +321,14 @@ $settings->create_tainacan_setting([
         'Tainacan\\Metadata_Types\\Text',
         'Tainacan\\Metadata_Types\\URL',
     ]),
-    'description'      => __('Selecione o metadado da coleção que receberá a URL.', 'tainacan-openalex-biblio'),
+    'description'      => __('Selecione o metadado da coleção que receberá a URL.', 'tainacan-openalex'),
     'default'          => 0,
     'sanitize_callback'=> 'absint'
 ]);
 
 $settings->create_tainacan_setting([
     'id'               => 'openalex_map_abnt',
-    'title'            => __('Mapeamento: Referência (ABNT) → Metadado', 'tainacan-openalex-biblio'),
+    'title'            => __('Mapeamento: Referência (ABNT) → Metadado', 'tainacan-openalex'),
     'section'          => 'openalex_biblio_settings_section',
     'type'             => 'integer',
     'input_type'       => 'select',
@@ -337,7 +337,7 @@ $settings->create_tainacan_setting([
         'Tainacan\\Metadata_Types\\Textarea',
         'Tainacan\\Metadata_Types\\URL',
     ]),
-    'description'      => __('Selecione o metadado da coleção que receberá a referência formatada.', 'tainacan-openalex-biblio'),
+    'description'      => __('Selecione o metadado da coleção que receberá a referência formatada.', 'tainacan-openalex'),
     'default'          => 0,
     'sanitize_callback'=> 'absint'
 ]);
