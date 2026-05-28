@@ -3,6 +3,7 @@
  * Plugin Name: Tainacan OpenAlex Bibliografia (Form Hook)
  * Description: Busca dados bibliográficos no OpenAlex e preenche metadados no Tainacan (UI via Admin Form Hook).
  * Version: 0.4.0
+ * License: GPL v3 or later
  */
 
 namespace Tainacan {
