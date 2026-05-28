@@ -52,7 +52,10 @@ class Tainacan_OpenAlex_Biblio_MVP {
 
     public function enqueue_assets_wp($hook) {
         // admin SPA do Tainacan
-        if (!isset($_GET['page']) || $_GET['page'] !== 'tainacan_admin') return;
+        /* phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only page identification for asset loading; no form processing. */
+        if (!isset($_GET['page']) || $_GET['page'] !== 'tainacan_admin') {
+            return;
+        }
         $this->enqueue_assets();
     }
 
@@ -350,8 +353,11 @@ $settings->create_tainacan_setting([
     }
 
     public function ajax_get_settings_mapping() {
-        $this->require_ajax_perms();
-    
+        check_ajax_referer(self::NONCE_ACTION, 'nonce');
+        if (!current_user_can('edit_posts')) {
+            wp_send_json_error(['message' => 'Sem permissão.'], 403);
+        }
+
         $mapping = [
             'title'   => $this->get_valid_mapping_metadatum_id('openalex_map_title', [
                 'Tainacan\\Metadata_Types\\Core_Title',
@@ -430,7 +436,10 @@ $settings->create_tainacan_setting([
     }
 
     public function ajax_work_search() {
-        $this->require_ajax_perms();
+        check_ajax_referer(self::NONCE_ACTION, 'nonce');
+        if (!current_user_can('edit_posts')) {
+            wp_send_json_error(['message' => 'Sem permissão.'], 403);
+        }
 
         $q = isset($_POST['q']) ? sanitize_text_field(wp_unslash($_POST['q'])) : '';
         if (!$q) {
@@ -478,7 +487,10 @@ $settings->create_tainacan_setting([
     }
 
     public function ajax_work_get() {
-        $this->require_ajax_perms();
+        check_ajax_referer(self::NONCE_ACTION, 'nonce');
+        if (!current_user_can('edit_posts')) {
+            wp_send_json_error(['message' => 'Sem permissão.'], 403);
+        }
 
         $id = isset($_POST['id']) ? esc_url_raw(wp_unslash($_POST['id'])) : '';
         if (!$id) wp_send_json_error(['message' => 'ID vazio.'], 400);
@@ -846,13 +858,6 @@ $settings->create_tainacan_setting([
         if ($urlPart)    $parts[] = $urlPart;
 
         return trim(preg_replace('/\s+/', ' ', implode(' ', $parts)));
-    }
-
-    private function require_ajax_perms() {
-        check_ajax_referer(self::NONCE_ACTION, 'nonce');
-        if (!current_user_can('edit_posts')) {
-            wp_send_json_error(['message' => 'Sem permissão.'], 403);
-        }
     }
 
     private function get_opt_str($id) {
