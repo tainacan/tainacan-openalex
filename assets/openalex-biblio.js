@@ -169,6 +169,29 @@ function normalizeMultiValue(v) {
     return $.post(ajaxUrl, Object.assign({ action, nonce }, data || {}));
   }
 
+  //issue 15
+function getCurrentTainacanItemId() {
+  const href = window.location.href || '';
+
+  const patterns = [
+    /\/items\/(\d+)/i,
+    /\/item\/(\d+)/i,
+    /item_id[=/](\d+)/i,
+    /[?&]item_id=(\d+)/i,
+    /[?&]item=(\d+)/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = href.match(pattern);
+    if (match && match[1]) {
+      return parseInt(match[1], 10);
+    }
+  }
+
+  return 0;
+}
+  // fim issue 15
+
   // =========================
   // Metadatum helpers
   // =========================
@@ -576,7 +599,7 @@ async function ensureEnoughValueInputs(metadatumId, neededCount) {
     log('Commit Blindado OK:', id, value);
     return true;
   }
-
+/* issue 15
   async function fillQueue(tasks) {
     let applied = 0;
 
@@ -608,7 +631,103 @@ async function ensureEnoughValueInputs(metadatumId, neededCount) {
     }
 
     return applied;
+  }*/
+
+async function fillQueue(tasks) {
+  console.log('[OpenAlexBiblio][DEBUG] fillQueue recebeu tasks:', tasks);
+
+  const itemId = getCurrentTainacanItemId();
+
+  console.log('[OpenAlexBiblio][DEBUG] itemId detectado:', itemId);
+
+  if (!itemId) {
+    setStatus(
+      'Não foi possível identificar o item atual. Salve/crie o item primeiro e tente novamente.',
+      true
+    );
+    return 0;
   }
+
+  if (!window.wp || !window.wp.apiFetch) {
+    setStatus(
+      'A API REST do WordPress não está disponível nesta tela.',
+      true
+    );
+    return 0;
+  }
+
+  let applied = 0;
+
+  for (const [mid, val] of tasks) {
+    const metadatumId = parseInt(mid, 10);
+
+    console.log('[OpenAlexBiblio][DEBUG] processando metadado:', {
+      mid,
+      metadatumId,
+      val
+    });
+
+    if (!metadatumId) continue;
+
+    const values = Array.isArray(val)
+      ? normalizeMultiValue(val)
+      : normalizeText(val).trim();
+
+    const isEmptyArray = Array.isArray(values) && values.length === 0;
+    const isEmptyString = !Array.isArray(values) && values === '';
+
+    console.log('[OpenAlexBiblio][DEBUG] values normalizado:', {
+      metadatumId,
+      values,
+      isEmptyArray,
+      isEmptyString
+    });
+
+    if (isEmptyArray || isEmptyString) {
+      log('Valor vazio ignorado para metadado:', metadatumId);
+      continue;
+    }
+
+    try {
+      log('Salvando metadado via REST API:', {
+        itemId,
+        metadatumId,
+        values
+      });
+
+      await window.wp.apiFetch({
+        path: `/tainacan/v2/item/${itemId}/metadata/${metadatumId}`,
+        method: 'POST',
+        data: {
+          values: values
+        }
+      });
+
+      applied++;
+
+      window.dispatchEvent(
+        new CustomEvent('TainacanReloadItemMetadataForm', {
+          detail: {
+            itemId: itemId,
+            metadatumId: metadatumId
+          }
+        })
+      );
+
+      await new Promise(r => setTimeout(r, 250));
+    } catch (e) {
+      err('Erro ao salvar metadado via REST API:', metadatumId, e);
+    }
+  }
+
+  console.log('[OpenAlexBiblio][DEBUG] total aplicado:', applied);
+
+  return applied;
+}
+
+
+
+  //fim issue 15  
 
   // =========================
   // UI events
@@ -705,7 +824,10 @@ async function ensureEnoughValueInputs(metadatumId, neededCount) {
             $('#openalex-biblio-results').empty().hide();
 
             if (applied > 0) {
-              setStatus('Preenchido! Agora clique em <strong>Salvar</strong>.', false);
+              //issue 15
+              //setStatus('Preenchido! Agora clique em <strong>Salvar</strong>.', false);
+              setStatus('Metadados salvos com sucesso via API do Tainacan.', false);
+              // fim issue 15
             } else {
               setStatus('Não consegui aplicar valores nos campos. Veja o console (F12).', true);
             }

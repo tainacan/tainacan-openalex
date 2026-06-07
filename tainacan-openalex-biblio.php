@@ -72,8 +72,8 @@ class Tainacan_OpenAlex_Biblio_MVP {
         wp_enqueue_script(
             'tainacan-openalex-biblio',
             $url . 'assets/openalex-biblio.js',
-            ['jquery'],
-            '0.4.1',
+            ['jquery', 'wp-api-fetch'],
+            '0.4.2',
             true
         );
 
