@@ -2,12 +2,12 @@
 /**
  * Plugin Name: Tainacan OpenAlex
  * Description: Busca dados bibliográficos no OpenAlex e preenche metadados no Tainacan.
- * Version: 0.4.0
+ * Version: 0.4.3
  * License: GPL v3 or later
  * Requires at least: 6.0
  * Tested up to: 7.0
  * Requires PHP: 7.4
- * Stable tag: 0.4.0
+ * Stable tag: 0.4.3
  * Requires Plugins: tainacan
  */
 
@@ -66,14 +66,16 @@ class Tainacan_OpenAlex_Biblio_MVP {
             'tainacan-openalex-biblio',
             $url . 'assets/openalex-biblio.css',
             [],
-            '0.4.0'
+            '0.4.3'
         );
+
+        $js_path = plugin_dir_path(__FILE__) . 'assets/openalex-biblio.js';
 
         wp_enqueue_script(
             'tainacan-openalex-biblio',
             $url . 'assets/openalex-biblio.js',
             ['jquery', 'wp-api-fetch'],
-            '0.4.2',
+            file_exists($js_path) ? filemtime($js_path) : '0.4.3',
             true
         );
 
@@ -486,67 +488,137 @@ $settings->create_tainacan_setting([
         ]);
     }
 
+    private function normalize_openalex_work_api_url(string $id): string {
+        $id = trim($id);
+
+        if ($id === '') {
+            return '';
+        }
+
+        if (preg_match('#^https?://api\.openalex\.org/works/([^/?#]+)#i', $id, $m)) {
+            return 'https://api.openalex.org/works/' . strtoupper($m[1]);
+        }
+
+        if (preg_match('#^https?://openalex\.org/(W\d+)$#i', $id, $m)) {
+            return 'https://api.openalex.org/works/' . strtoupper($m[1]);
+        }
+
+        if (preg_match('#^(W\d+)$#i', $id, $m)) {
+            return 'https://api.openalex.org/works/' . strtoupper($m[1]);
+        }
+
+        return 'https://api.openalex.org/works/' . ltrim($id, '/');
+    }
+
+
+
     public function ajax_work_get() {
         check_ajax_referer(self::NONCE_ACTION, 'nonce');
+
         if (!current_user_can('edit_posts')) {
             wp_send_json_error(['message' => 'Sem permissão.'], 403);
         }
 
         $id = isset($_POST['id']) ? esc_url_raw(wp_unslash($_POST['id'])) : '';
-        if (!$id) wp_send_json_error(['message' => 'ID vazio.'], 400);
+
+        if (!$id) {
+            wp_send_json_error(['message' => 'ID vazio.'], 400);
+        }
 
         $api_key = $this->get_opt_str('openalex_api_key');
 
-        $url = $id;
-        if (strpos($url, 'api.openalex.org/works/') === false) {
-            $url = 'https://api.openalex.org/works/' . ltrim($id, '/');
+        $url = $this->normalize_openalex_work_api_url($id);
+
+        if ($url === '') {
+            wp_send_json_error([
+                'message' => 'ID do work vazio ou inválido.',
+                'id'      => $id,
+            ], 400);
         }
 
         $args = [
-            'select' => 'id,title,publication_year,doi,authorships,primary_location',
+            'select' => 'id,title,publication_year,doi,authorships,primary_location,locations',
         ];
-        if ($api_key !== '') $args['api_key'] = $api_key;
+
+        if ($api_key !== '') {
+            $args['api_key'] = $api_key;
+        }
 
         $url = add_query_arg($args, $url);
 
         $resp = wp_remote_get($url, [
             'timeout' => 15,
-            'headers' => ['Accept' => 'application/json'],
+            'headers' => [
+                'Accept' => 'application/json',
+            ],
         ]);
 
-        if (is_wp_error($resp)) wp_send_json_error(['message' => $resp->get_error_message()], 500);
+        if (is_wp_error($resp)) {
+            wp_send_json_error([
+                'message' => $resp->get_error_message(),
+            ], 500);
+        }
 
         $code = wp_remote_retrieve_response_code($resp);
         $body = wp_remote_retrieve_body($resp);
 
         if ($code < 200 || $code >= 300) {
-            wp_send_json_error(['message' => 'Erro no OpenAlex', 'status' => $code, 'body' => $body], 502);
+            wp_send_json_error([
+                'message'      => 'Erro ao obter detalhes do work no OpenAlex.',
+                'status'       => $code,
+                'openalex_url' => $url,
+                'id_original'  => $id,
+                'body'         => $body,
+            ], 502);
         }
 
         $w = json_decode($body, true);
 
-        $authors = [];
-        foreach (($w['authorships'] ?? []) as $a) {
-            $name = $a['author']['display_name'] ?? null;
-            if ($name) $authors[] = $name;
+        if (!is_array($w)) {
+            wp_send_json_error([
+                'message' => 'Resposta inválida do OpenAlex.',
+                'body'    => $body,
+            ], 502);
         }
 
-        $venue = $w['primary_location']['source']['display_name'] ?? null;
+        $authors = [];
+
+        foreach (($w['authorships'] ?? []) as $a) {
+            $name = $a['author']['display_name'] ?? null;
+
+            if ($name) {
+                $authors[] = $name;
+            }
+        }
+
+        $venue = $this->extract_openalex_venue($w);
 
         $out = [
             'id'           => $w['id'] ?? null,
-            'title'        => $w['title'] ?? null,
-            'year'         => $w['publication_year'] ?? null,
-            'doi'          => $w['doi'] ?? null,
+            'title'        => $w['title'] ?? '',
+            'year'         => $w['publication_year'] ?? '',
+            'doi'          => $w['doi'] ?? '',
             'venue'        => $venue,
             'authors'      => implode('; ', $authors),
             'authors_list' => array_values($authors),
-            'url'          => $w['id'] ?? null,
+            'url'          => $w['id'] ?? '',
         ];
 
         $out['abnt'] = $this->format_abnt_basic($out);
 
-        wp_send_json_success(['work' => $out]);
+        wp_send_json_success([
+            'work'  => $out,
+            'debug' => [
+                'openalex_url' => $url,
+                'raw_id'       => $w['id'] ?? null,
+                'raw_title'    => $w['title'] ?? null,
+                'raw_year'     => $w['publication_year'] ?? null,
+                'raw_doi'      => $w['doi'] ?? null,
+                'raw_venue_primary_location' => $w['primary_location']['source']['display_name'] ?? null,
+                'raw_locations_count'        => is_array($w['locations'] ?? null) ? count($w['locations']) : 0,
+                'normalized_work'            => $out,
+            ],
+        ]);
     }
 
     private function search_works_by_text(string $query, string $api_key, string $mode = 'free'): array {
@@ -824,6 +896,34 @@ $settings->create_tainacan_setting([
         $id = preg_replace('#^https?://openalex\.org/#i', '', $id);
         return strtoupper($id);
     }
+
+
+    private function extract_openalex_venue(array $w): string {
+        $candidates = [];
+
+        if (!empty($w['primary_location']['source']['display_name'])) {
+            $candidates[] = $w['primary_location']['source']['display_name'];
+        }
+
+        if (!empty($w['locations']) && is_array($w['locations'])) {
+            foreach ($w['locations'] as $location) {
+                if (!empty($location['source']['display_name'])) {
+                    $candidates[] = $location['source']['display_name'];
+                }
+            }
+        }
+
+        foreach ($candidates as $candidate) {
+            $candidate = trim((string) $candidate);
+
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        return '';
+    }
+
 
     private function format_abnt_basic(array $work): string {
         $authorsRaw = trim((string)($work['authors'] ?? ''));
