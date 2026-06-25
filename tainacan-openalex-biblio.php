@@ -495,15 +495,15 @@ $settings->create_tainacan_setting([
             return '';
         }
 
-        if (preg_match('#^https?://api\.openalex\.org/works/([^/?#]+)#i', $id, $m)) {
+        if (preg_match('~https?://api\.openalex\.org/works/([^/?#]+)~i', $id, $m)) {
             return 'https://api.openalex.org/works/' . strtoupper($m[1]);
         }
 
-        if (preg_match('#^https?://openalex\.org/(W\d+)$#i', $id, $m)) {
+        if (preg_match('~^https?://openalex\.org/(W\d+)$~i', $id, $m)) {
             return 'https://api.openalex.org/works/' . strtoupper($m[1]);
         }
 
-        if (preg_match('#^(W\d+)$#i', $id, $m)) {
+        if (preg_match('~^(W\d+)$~i', $id, $m)) {
             return 'https://api.openalex.org/works/' . strtoupper($m[1]);
         }
 
