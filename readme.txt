@@ -4,7 +4,7 @@ Tags: tainacan, openalex, bibliography, metadata, abnt
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.4.0
+Stable tag: 0.1.0
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -81,7 +81,7 @@ It generates a practical, simplified ABNT-style string. It does not cover every 
 
 == Changelog ==
 
-= 0.4.0 =
+= 0.1.0 =
 * Admin Form Hook integration for OpenAlex bibliographic search
 * Search by free text, title, author, DOI, and ISSN
 * Metadata mapping and ABNT reference generation
@@ -89,5 +89,5 @@ It generates a practical, simplified ABNT-style string. It does not cover every 
 
 == Upgrade Notice ==
 
-= 0.4.0 =
+= 0.1.0 =
 Initial public release for OpenAlex bibliographic lookup in the Tainacan item form.
