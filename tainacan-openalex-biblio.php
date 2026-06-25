@@ -29,7 +29,7 @@ namespace {
 
 if (!defined('ABSPATH')) exit;
 
-class Tainacan_OpenAlex_Biblio_MVP {
+class Tainacan_OpenAlex_Biblio {
 
     const NONCE_ACTION = 'tainacan_openalex_biblio_nonce';
 
@@ -107,13 +107,12 @@ class Tainacan_OpenAlex_Biblio_MVP {
     public function render_item_hook() {
         ob_start();
         ?>
-        <div class="field form-hook-region">
-            <h4 style="margin:0 0 .5rem 0;"><?php esc_html_e('OpenAlex (Bibliografia)', 'tainacan-openalex'); ?></h4>
-            <p class="help" style="margin:.25rem 0 1rem 0;opacity:.85;">
-                <?php esc_html_e('Pesquise e clique em um resultado para preencher os metadados deste item.', 'tainacan-openalex'); ?>
+        <h4><?php esc_html_e('OpenAlex', 'tainacan-openalex'); ?></h4>
+        <div class="field openalex-biblio-hook">
+            <label class="label"><?php esc_html_e('Preencher bibliografia', 'tainacan-openalex'); ?></label>
+            <p class="help">
+                <?php esc_html_e('Pesquise e clique em um resultado para preencher os metadados do item.', 'tainacan-openalex'); ?>
             </p>
-
-            <!-- ✅ root controlado pelo JS -->
             <div id="openalex-biblio-hook-root"></div>
         </div>
         <?php
@@ -359,7 +358,7 @@ private function get_metadata_select_options_html(array $allowed_metadata_types 
             'openalex_biblio_settings_section',
             __('OpenAlex Biblio', 'tainacan-openalex'),
             function () {
-                echo '<p class="settings-section-description">';
+                echo '<p class="help">';
                 esc_html_e('Configure a coleção de referências e o mapeamento dos campos (OpenAlex → Metadados).', 'tainacan-openalex');
                 echo '</p>';
             },
@@ -699,7 +698,7 @@ $settings->create_tainacan_setting([
         }
 
         $args = [
-            'select' => 'id,title,publication_year,doi,authorships,primary_location,locations',
+            'select' => $this->get_openalex_work_select_fields(),
         ];
 
         if ($api_key !== '') {
@@ -743,30 +742,7 @@ $settings->create_tainacan_setting([
             ], 502);
         }
 
-        $authors = [];
-
-        foreach (($w['authorships'] ?? []) as $a) {
-            $name = $a['author']['display_name'] ?? null;
-
-            if ($name) {
-                $authors[] = $name;
-            }
-        }
-
-        $venue = $this->extract_openalex_venue($w);
-
-        $out = [
-            'id'           => $w['id'] ?? null,
-            'title'        => $w['title'] ?? '',
-            'year'         => $w['publication_year'] ?? '',
-            'doi'          => $w['doi'] ?? '',
-            'venue'        => $venue,
-            'authors'      => implode('; ', $authors),
-            'authors_list' => array_values($authors),
-            'url'          => $w['id'] ?? '',
-        ];
-
-        $out['abnt'] = $this->format_abnt_basic($out);
+        $out = $this->normalize_work_item($w);
 
         wp_send_json_success([
             'work'  => $out,
@@ -783,11 +759,15 @@ $settings->create_tainacan_setting([
         ]);
     }
 
+    private function get_openalex_work_select_fields(): string {
+        return 'id,title,publication_year,doi,authorships,primary_location,locations';
+    }
+
     private function search_works_by_text(string $query, string $api_key, string $mode = 'free'): array {
         $args = [
             'search'   => $query,
             'per-page' => 10,
-            'select'   => 'id,title,publication_year,doi',
+            'select'   => $this->get_openalex_work_select_fields(),
         ];
 
         if ($api_key !== '') {
@@ -828,7 +808,7 @@ $settings->create_tainacan_setting([
 
         $url = 'https://api.openalex.org/works/' . rawurlencode('doi:' . $doi);
         $args = [
-            'select' => 'id,title,publication_year,doi',
+            'select' => $this->get_openalex_work_select_fields(),
         ];
         if ($api_key !== '') {
             $args['api_key'] = $api_key;
@@ -891,7 +871,7 @@ $settings->create_tainacan_setting([
             'filter'   => 'authorships.author.id:' . $author_id,
             'per-page' => 10,
             'sort'     => 'publication_year:desc',
-            'select'   => 'id,title,publication_year,doi',
+            'select'   => $this->get_openalex_work_select_fields(),
         ];
         if ($api_key !== '') {
             $works_args['api_key'] = $api_key;
@@ -959,7 +939,7 @@ $settings->create_tainacan_setting([
             'filter'   => 'primary_location.source.id:' . $source_id,
             'per-page' => 10,
             'sort'     => 'publication_year:desc',
-            'select'   => 'id,title,publication_year,doi',
+            'select'   => $this->get_openalex_work_select_fields(),
         ];
         if ($api_key !== '') {
             $works_args['api_key'] = $api_key;
@@ -1043,12 +1023,32 @@ $settings->create_tainacan_setting([
     }
 
     private function normalize_work_item(array $w): array {
-        return [
-            'id'    => $w['id'] ?? null,
-            'title' => $w['title'] ?? ($w['display_name'] ?? null),
-            'year'  => $w['publication_year'] ?? null,
-            'doi'   => $w['doi'] ?? null,
+        $authors = [];
+
+        foreach (($w['authorships'] ?? []) as $a) {
+            $name = $a['author']['display_name'] ?? null;
+
+            if ($name) {
+                $authors[] = $name;
+            }
+        }
+
+        $venue = $this->extract_openalex_venue($w);
+
+        $out = [
+            'id'           => $w['id'] ?? null,
+            'title'        => $w['title'] ?? ($w['display_name'] ?? ''),
+            'year'         => $w['publication_year'] ?? '',
+            'doi'          => $w['doi'] ?? '',
+            'venue'        => $venue,
+            'authors'      => implode('; ', $authors),
+            'authors_list' => array_values($authors),
+            'url'          => $w['id'] ?? '',
         ];
+
+        $out['abnt'] = $this->format_abnt_basic($out);
+
+        return $out;
     }
 
     private function extract_short_openalex_id(string $id): string {
@@ -1132,6 +1132,6 @@ $settings->create_tainacan_setting([
 
 }
 
-new Tainacan_OpenAlex_Biblio_MVP();
+new Tainacan_OpenAlex_Biblio();
 
 } // namespace

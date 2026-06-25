@@ -13,6 +13,20 @@
     issn: 'Ex.: 0028-0836'
   };
 
+  const WORK_FIELDS = [
+    { key: 'title', label: 'Título' },
+    { key: 'authors', label: 'Autores' },
+    { key: 'year', label: 'Ano' },
+    { key: 'doi', label: 'DOI' },
+    { key: 'venue', label: 'Periódico/Veículo' },
+    { key: 'url', label: 'URL' },
+    { key: 'abnt', label: 'Referência ABNT' },
+  ];
+
+  const WORK_DETAIL_FIELDS = ['doi', 'venue', 'url', 'abnt'];
+
+  let currentMapping = null;
+
   // =========================
   // Root do Form Hook
   // =========================
@@ -29,21 +43,31 @@
 
     root.innerHTML = `
       <div class="openalex-biblio-box">
-        <div class="openalex-biblio-row openalex-biblio-row-search">
-          <select id="openalex-biblio-search-type">
-            <option value="free" selected>Busca livre</option>
-            <option value="title">Título</option>
-            <option value="author">Autor</option>
-            <option value="doi">DOI</option>
-            <option value="issn">ISSN</option>
-          </select>
-          <input type="text" id="openalex-biblio-query" placeholder="${SEARCH_PLACEHOLDERS.free}" />
-          <button type="button" class="button button-primary" id="openalex-biblio-search">Buscar</button>
+        <div class="field is-grouped is-grouped-multiline">
+          <div class="control">
+            <span class="select">
+              <select id="openalex-biblio-search-type">
+                <option value="free" selected>Busca livre</option>
+                <option value="title">Título</option>
+                <option value="author">Autor</option>
+                <option value="doi">DOI</option>
+                <option value="issn">ISSN</option>
+              </select>
+            </span>
+          </div>
+          <div class="control is-expanded">
+            <input type="text" class="input" id="openalex-biblio-query" placeholder="${SEARCH_PLACEHOLDERS.free}" />
+          </div>
+          <div class="control">
+            <button type="button" class="button is-primary" id="openalex-biblio-search">Buscar</button>
+          </div>
         </div>
-        <div class="openalex-biblio-help">A seleção do resultado salva os valores diretamente via API REST do Tainacan.</div>
-        <div id="openalex-biblio-status" style="margin-top:.75rem;"></div>
-        <div id="openalex-biblio-preview" class="openalex-biblio-preview" style="margin-top:.75rem;"></div>
-        <ul id="openalex-biblio-results" class="openalex-biblio-results"></ul>
+        <div id="openalex-biblio-status" class="openalex-biblio-status"></div>
+        <div id="openalex-biblio-preview" class="openalex-biblio-preview"></div>
+        <div id="openalex-biblio-results-wrap" class="openalex-biblio-results-wrap is-hidden">
+          <p class="has-text-weight-semibold openalex-biblio-results-title">Resultados</p>
+          <div id="openalex-biblio-results" class="openalex-biblio-results-list"></div>
+        </div>
       </div>
     `;
     log('UI montada no Admin Form Hook');
@@ -61,70 +85,210 @@
   // =========================
   function setStatus(html, isError) {
     const $st = $('#openalex-biblio-status');
-    $st.html(html || '');
-    $st.css('color', isError ? '#b32d2e' : 'inherit');
+    if (!html) {
+      $st.empty();
+      return;
+    }
+    const tone = isError ? 'is-danger' : 'is-primary';
+    $st.html(`<div class="notification ${tone} is-light is-size-7 openalex-biblio-status-message openalex-biblio-resolved-info">${html}</div>`);
   }
 
   function clearWorkPreview() {
   $('#openalex-biblio-preview').empty();
   }
 
-function renderWorkPreview(candidates) {
-  const $preview = $('#openalex-biblio-preview');
+function getCandidateDisplayValue(candidates, field) {
+    const candidate = candidates.find((item) => item.field === field);
+    if (!candidate) return '';
 
-  if (!$preview.length) {
-    return;
+    if (Array.isArray(candidate.value)) {
+      return candidate.value.join('; ');
+    }
+
+    return normalizeText(candidate.value);
   }
 
-  if (!Array.isArray(candidates) || !candidates.length) {
-    $preview.empty();
-    return;
-  }
-
-  const rows = candidates.map((candidate) => {
-    const value = Array.isArray(candidate.value)
-      ? candidate.value.join(' | ')
-      : normalizeText(candidate.value);
-
+  function getCandidateStatus(candidate) {
     const mapped = !!parseInt(candidate.metadatumId, 10);
     const empty = isRestValueEmpty(candidate.value);
 
-    let status = 'Será enviado';
-
     if (!mapped) {
-      status = 'Não mapeado';
-    } else if (empty) {
-      status = 'Valor vazio';
+      return { label: 'Não mapeado', className: 'is-warning' };
     }
 
+    if (empty) {
+      return { label: 'Valor vazio', className: 'is-primary' };
+    }
+
+    return { label: 'Mapeado', className: 'is-success' };
+  }
+
+  function getAppliedFieldStatus() {
+    return { label: 'Preenchido', className: 'is-success' };
+  }
+
+  function getFailedFieldStatus() {
+    return { label: 'Falhou', className: 'is-danger' };
+  }
+
+  function renderPreviewFieldHtml(candidate, applied) {
+    const value = Array.isArray(candidate.value)
+      ? candidate.value.join(' | ')
+      : normalizeText(candidate.value);
+    const status = applied
+      ? getAppliedFieldStatus()
+      : getCandidateStatus(candidate);
+    const valueClass = candidate.field === 'title'
+      ? 'content is-small openalex-biblio-field-value has-text-weight-semibold'
+      : 'content is-small openalex-biblio-field-value';
+
     return `
-      <tr>
-        <td><strong>${escapeHtml(candidate.label || candidate.field)}</strong></td>
-        <td>${escapeHtml(value || '—')}</td>
-        <td>${escapeHtml(status)}</td>
-      </tr>
+      <div class="openalex-biblio-result-field" data-field="${escapeAttr(candidate.field)}">
+        ${renderFieldLabelHtml(candidate.label || candidate.field, status)}
+        <div class="${valueClass}">${escapeHtml(value || '—')}</div>
+      </div>
     `;
-  }).join('');
+  }
 
-  $preview.html(`
-    <div class="openalex-biblio-preview-box">
-      <strong>Valores retornados pelo OpenAlex</strong>
+  function updatePreviewFieldStatus(fieldKey, status) {
+    const $field = $('.openalex-biblio-preview-card .openalex-biblio-result-field[data-field="' + fieldKey + '"]');
 
-      <table class="widefat striped" style="margin-top:.5rem;">
-        <thead>
-          <tr>
-            <th>Campo</th>
-            <th>Valor</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows}
-        </tbody>
-      </table>
-    </div>
-  `);
-}
+    if (!$field.length) {
+      return;
+    }
+
+    const $tag = $field.find('.openalex-biblio-field-status');
+
+    if (!$tag.length) {
+      $field.find('.openalex-biblio-field-label').append(
+        '<span class="tag is-light is-small ' + status.className + ' openalex-biblio-field-status">' + escapeHtml(status.label) + '</span>'
+      );
+      return;
+    }
+
+    $tag
+      .removeClass('is-warning is-primary is-success is-danger')
+      .addClass(status.className)
+      .text(status.label);
+  }
+
+  function getFieldStatus(work, fieldKey, map) {
+    if (!map) return null;
+
+    let value = getWorkFieldValue(work, fieldKey);
+
+    if (fieldKey === 'authors') {
+      value = work.authors_list || value;
+    }
+
+    return getCandidateStatus({
+      metadatumId: map[fieldKey],
+      value,
+    });
+  }
+
+  function renderFieldLabelHtml(label, status) {
+    const statusTag = status
+      ? `<span class="tag is-light is-small ${status.className} openalex-biblio-field-status">${escapeHtml(status.label)}</span>`
+      : '';
+
+    return `
+      <p class="heading openalex-biblio-field-label">
+        <strong><span>${escapeHtml(label)}</span></strong>
+        ${statusTag}
+      </p>
+    `;
+  }
+
+  function workToCandidates(work, map) {
+    const authorsValues = normalizeMultiValue(work.authors_list || work.authors);
+
+    return [
+      {
+        field: 'title',
+        label: 'Título',
+        metadatumId: map.title,
+        value: normalizeText(work.title)
+      },
+      {
+        field: 'authors',
+        label: 'Autores',
+        metadatumId: map.authors,
+        value: authorsValues
+      },
+      {
+        field: 'year',
+        label: 'Ano',
+        metadatumId: map.year,
+        value: normalizeText(work.year)
+      },
+      {
+        field: 'doi',
+        label: 'DOI',
+        metadatumId: map.doi,
+        value: normalizeText(work.doi)
+      },
+      {
+        field: 'venue',
+        label: 'Periódico/Veículo',
+        metadatumId: map.venue,
+        value: normalizeText(work.venue)
+      },
+      {
+        field: 'url',
+        label: 'URL',
+        metadatumId: map.url,
+        value: normalizeText(work.url)
+      },
+      {
+        field: 'abnt',
+        label: 'Referência ABNT',
+        metadatumId: map.abnt,
+        value: normalizeText(work.abnt || '')
+      }
+    ];
+  }
+
+  function renderWorkPreview(candidates, appliedFields) {
+    const $preview = $('#openalex-biblio-preview');
+
+    if (!$preview.length) {
+      return;
+    }
+
+    if (!Array.isArray(candidates) || !candidates.length) {
+      $preview.empty();
+      return;
+    }
+
+    const applied = appliedFields || {};
+    const summaryWork = {
+      title: getCandidateDisplayValue(candidates, 'title'),
+      authors: getCandidateDisplayValue(candidates, 'authors'),
+      year: getCandidateDisplayValue(candidates, 'year'),
+    };
+    const fieldsHtml = candidates.map((candidate) =>
+      renderPreviewFieldHtml(candidate, !!applied[candidate.field])
+    ).join('');
+
+    $preview.html(`
+      <div class="openalex-biblio-results-wrap openalex-biblio-preview-wrap">
+        <p class="has-text-weight-semibold openalex-biblio-results-title">Valores importados</p>
+        <div class="openalex-biblio-results-list">
+          <div class="box openalex-biblio-item openalex-biblio-preview-card">
+            <div class="openalex-biblio-result-summary">
+              ${renderResultSummaryHtml(summaryWork)}
+            </div>
+            <div class="openalex-biblio-result-details">
+              <div class="openalex-biblio-result-fields">
+                ${fieldsHtml}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+  }
 
 
   function escapeHtml(s) {
@@ -156,6 +320,79 @@ function normalizeMultiValue(v) {
   return single ? [single] : [];
 }
 
+  function getWorkFieldValue(work, key) {
+    if (key === 'authors') {
+      if (Array.isArray(work.authors_list) && work.authors_list.length) {
+        return work.authors_list.join('; ');
+      }
+      return normalizeText(work.authors);
+    }
+    return normalizeText(work[key]);
+  }
+
+  function renderWorkFieldsHtml(work, keys, map) {
+    const fields = keys
+      ? WORK_FIELDS.filter((field) => keys.includes(field.key))
+      : WORK_FIELDS;
+
+    return fields.map((field) => {
+      const value = getWorkFieldValue(work, field.key) || '—';
+      const valueClass = field.key === 'title'
+        ? 'content is-small openalex-biblio-field-value has-text-weight-semibold'
+        : 'content is-small openalex-biblio-field-value';
+      const status = map ? getFieldStatus(work, field.key, map) : null;
+
+      return `
+        <div class="openalex-biblio-result-field">
+          ${renderFieldLabelHtml(field.label, status)}
+          <div class="${valueClass}">${escapeHtml(value)}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderResultSummaryHtml(work) {
+    const title = getWorkFieldValue(work, 'title') || '(sem título)';
+    const authors = getWorkFieldValue(work, 'authors');
+    const year = getWorkFieldValue(work, 'year');
+    const metaParts = [];
+
+    if (authors) metaParts.push(escapeHtml(authors));
+    if (year) metaParts.push(escapeHtml(year));
+
+    return `
+      <p class="has-text-weight-semibold openalex-biblio-result-title">${escapeHtml(title)}</p>
+      ${metaParts.length ? `<p class="is-size-7 openalex-biblio-result-meta">${metaParts.join(' · ')}</p>` : ''}
+    `;
+  }
+
+  function renderResultCard(work, map) {
+    const detailKeys = map
+      ? WORK_FIELDS.map((field) => field.key)
+      : WORK_DETAIL_FIELDS;
+
+    return `
+      <div class="box openalex-biblio-item" data-id="${escapeAttr(work.id)}">
+        <div class="openalex-biblio-result-summary">
+          ${renderResultSummaryHtml(work)}
+        </div>
+        <div class="openalex-biblio-result-details is-hidden">
+          <div class="openalex-biblio-result-fields">
+            ${renderWorkFieldsHtml(work, detailKeys, map)}
+          </div>
+        </div>
+        <div class="field is-grouped is-grouped-right openalex-biblio-result-actions">
+          <div class="control">
+            <button type="button" class="button is-small openalex-biblio-toggle-details">Ver detalhes</button>
+          </div>
+          <div class="control">
+            <button type="button" class="button is-small is-primary openalex-biblio-fill-btn">Preencher</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
 
 
   function getSearchType() {
@@ -167,57 +404,19 @@ function normalizeMultiValue(v) {
     $('#openalex-biblio-query').attr('placeholder', SEARCH_PLACEHOLDERS[type] || SEARCH_PLACEHOLDERS.free);
   }
 
-  function renderResolvedInfo(resolved) {
-    if (!resolved || !resolved.type) return '';
-
-    if (resolved.type === 'author') {
-      const name = resolved.display_name ? escapeHtml(resolved.display_name) : 'autor';
-      const worksCount = resolved.works_count != null ? ` • ${escapeHtml(resolved.works_count)} works` : '';
-      return `<div class="openalex-biblio-meta">Autor selecionado pelo OpenAlex: <strong>${name}</strong>${worksCount}</div>`;
-    }
-
-    if (resolved.type === 'issn') {
-      const name = resolved.display_name ? escapeHtml(resolved.display_name) : 'source';
-      const issnL = resolved.issn_l ? ` • ISSN-L ${escapeHtml(resolved.issn_l)}` : '';
-      return `<div class="openalex-biblio-meta">Source resolvida: <strong>${name}</strong>${issnL}</div>`;
-    }
-
-    if (resolved.type === 'doi') {
-      return `<div class="openalex-biblio-meta">DOI resolvido diretamente no OpenAlex.</div>`;
-    }
-
-    if (resolved.type === 'title') {
-      return `<div class="openalex-biblio-meta">Busca por título concluída.</div>`;
-    }
-
-    return `<div class="openalex-biblio-meta">Busca livre concluída.</div>`;
-  }
-
-  function renderResults(items, resolved) {
-    const $ul = $('#openalex-biblio-results');
-    $ul.empty();
-
-    const resolvedHtml = renderResolvedInfo(resolved);
-    if (resolvedHtml) {
-      $ul.append(`<li class="openalex-biblio-info">${resolvedHtml}</li>`);
-    }
+  function renderResults(items, map) {
+    const $container = $('#openalex-biblio-results');
+    const $wrap = $('#openalex-biblio-results-wrap');
+    $container.empty();
+    $wrap.removeClass('is-hidden');
 
     if (!items || !items.length) {
-      $ul.append('<li class="openalex-biblio-empty">Nenhum resultado.</li>');
+      $container.append('<div class="box has-text-grey">Nenhum resultado.</div>');
       return;
     }
 
     items.forEach((it) => {
-      const title = it.title || '(sem título)';
-      const year = it.year ? ` (${it.year})` : '';
-      const doi = it.doi ? `<div class="openalex-biblio-doi">${escapeHtml(it.doi)}</div>` : '';
-
-      $ul.append(`
-        <li class="openalex-biblio-item" data-id="${escapeAttr(it.id)}">
-          <div class="openalex-biblio-title">${escapeHtml(title)}${year}</div>
-          ${doi}
-        </li>
-      `);
+      $container.append(renderResultCard(it, map));
     });
   }
 
@@ -396,7 +595,8 @@ function normalizeRestValue(rawValue) {
     return normalizeMultiValue(rawValue);
   }
 
-  return normalizeText(rawValue).trim();
+  const single = normalizeText(rawValue).trim();
+  return single ? [single] : [];
 }
 
 function isRestValueEmpty(value) {
@@ -522,6 +722,23 @@ async function fillQueue(tasks) {
         response
       });
 
+      window.dispatchEvent(
+        new CustomEvent('TainacanReloadItemMetadataForm', {
+          detail: {
+            itemId: itemId,
+            metadatumId: metadatumId
+          }
+        })
+      );
+
+      updatePreviewFieldStatus(field, getAppliedFieldStatus());
+
+      log('[DEBUG] evento disparado para metadado:', {
+        itemId: itemId,
+        metadatumId: metadatumId,
+        field: field
+      });
+
     } catch (e) {
       failed.push({
         field,
@@ -529,6 +746,8 @@ async function fillQueue(tasks) {
         values,
         error: e
       });
+
+      updatePreviewFieldStatus(field, getFailedFieldStatus());
 
       err('[DEBUG] POST REST erro:', {
         field,
@@ -547,32 +766,6 @@ async function fillQueue(tasks) {
     failed
   });
 
-  if (successful.length === 1) {
-    window.dispatchEvent(
-      new CustomEvent('TainacanReloadItemMetadataForm', {
-        detail: {
-          itemId: itemId,
-          metadatumId: successful[0].metadatumId
-        }
-      })
-    );
-
-    log('[DEBUG] evento disparado para um metadado:', {
-      itemId: itemId,
-      metadatumId: successful[0].metadatumId
-    });
-
-  } else if (successful.length > 1) {
-    window.dispatchEvent(
-      new CustomEvent('TainacanReloadItemMetadataForm')
-    );
-
-    log('[DEBUG] evento disparado uma vez para recarregar todo o formulário:', {
-      itemId: itemId,
-      metadatumIds: successful.map((item) => item.metadatumId)
-    });
-  }
-
   console.groupEnd();
 
   return applied;
@@ -582,6 +775,115 @@ async function fillQueue(tasks) {
 
  
 
+  async function loadSettingsMapping() {
+    const mapResp = await ajaxPost('tainacan_openalex_get_settings_mapping', {});
+
+    if (!mapResp || !mapResp.success) {
+      throw mapResp;
+    }
+
+    currentMapping = (mapResp.data && mapResp.data.mapping) ? mapResp.data.mapping : {};
+    return currentMapping;
+  }
+
+  async function fillWorkFromOpenAlex(openalexId, $fillBtn) {
+    if (!openalexId) return;
+
+    try {
+      let map = currentMapping;
+
+      if (!map) {
+        setStatus('Carregando mapeamento...', false);
+        map = await loadSettingsMapping();
+      }
+
+      setStatus('Carregando detalhes do OpenAlex...', false);
+
+      const resp = await ajaxPost('tainacan_openalex_work_get', { id: openalexId });
+
+      if (!resp || !resp.success) {
+        setStatus('Erro ao obter detalhes (AJAX).', true);
+        err('resp', resp);
+        return;
+      }
+
+      const work = (resp.data && resp.data.work) ? resp.data.work : {};
+      const debug = (resp.data && resp.data.debug) ? resp.data.debug : null;
+
+      log('[DEBUG] mapeamento recebido:', map);
+      log('[DEBUG] work normalizado recebido:', work);
+      log('[DEBUG] debug backend OpenAlex:', debug);
+
+      const candidates = workToCandidates(work, map);
+
+      renderWorkPreview(candidates);
+
+      console.table(candidates.map((candidate) => ({
+        campo: candidate.field,
+        rotulo: candidate.label,
+        metadatumId: candidate.metadatumId,
+        valor: Array.isArray(candidate.value) ? candidate.value.join(' | ') : candidate.value,
+        mapeado: !!parseInt(candidate.metadatumId, 10),
+        vazio: isRestValueEmpty(candidate.value)
+      })));
+
+      const tasks = candidates
+        .filter((candidate) => !!parseInt(candidate.metadatumId, 10))
+        .map((candidate) => ({
+          field: candidate.field,
+          label: candidate.label,
+          metadatumId: parseInt(candidate.metadatumId, 10),
+          value: candidate.value
+        }));
+
+      log('[DEBUG] tasks finais para REST:', tasks);
+
+      if (!tasks.length) {
+        setStatus('Nenhum campo mapeado para preencher.', true);
+        return;
+      }
+
+      setStatus('Enviando metadados ao Tainacan via API REST...', false);
+
+      if ($fillBtn && $fillBtn.length) {
+        $fillBtn.addClass('is-loading').prop('disabled', true);
+      }
+
+      let applied = 0;
+
+      try {
+        applied = await fillQueue(tasks);
+      } finally {
+        if ($fillBtn && $fillBtn.length) {
+          $fillBtn.removeClass('is-loading').prop('disabled', false);
+        }
+      }
+
+      $('#openalex-biblio-results').empty();
+      $('#openalex-biblio-results-wrap').addClass('is-hidden');
+
+      if (applied > 0) {
+        setStatus(
+          'Metadados enviados ao item. Lembre-se de revisar os valores.',
+          false
+        );
+      } else {
+        setStatus('Não foi possível enviar os dados para o item.', true);
+      }
+    } catch (xhr) {
+      const data = xhr && xhr.responseJSON && xhr.responseJSON.data
+        ? xhr.responseJSON.data
+        : {};
+
+      const message = data.message
+        || (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message)
+        || 'Erro ao processar a seleção (AJAX).';
+
+      setStatus(message, true);
+      err('[DEBUG] Erro ao preencher work:', xhr);
+    }
+  }
+
   // =========================
   // UI events
   // =========================
@@ -590,6 +892,7 @@ async function fillQueue(tasks) {
   });
 
   $(document).on('click', '#openalex-biblio-search', function () {
+    const $btn = $(this);
     const q = ($('#openalex-biblio-query').val() || '').trim();
     const searchType = getSearchType();
 
@@ -597,7 +900,14 @@ async function fillQueue(tasks) {
 
     setStatus('Buscando no OpenAlex...', false);
     clearWorkPreview();
-    $('#openalex-biblio-results').empty().show();
+    $('#openalex-biblio-results').empty();
+    $('#openalex-biblio-results-wrap').removeClass('is-hidden');
+
+    $btn.addClass('is-loading').prop('disabled', true);
+
+    const finishSearch = function () {
+      $btn.removeClass('is-loading').prop('disabled', false);
+    };
 
     ajaxPost('tainacan_openalex_work_search', { q, search_type: searchType })
       .done(function (resp) {
@@ -605,10 +915,21 @@ async function fillQueue(tasks) {
           const msg = (resp && resp.data && resp.data.message) ? resp.data.message : 'Falha na busca.';
           setStatus(msg, true);
           err('resp', resp);
+          finishSearch();
           return;
         }
-        setStatus('', false);
-        renderResults((resp.data && resp.data.results) || [], (resp.data && resp.data.resolved) || null);
+
+        loadSettingsMapping()
+          .then(function (map) {
+            setStatus('', false);
+            renderResults((resp.data && resp.data.results) || [], map);
+          })
+          .catch(function (mapResp) {
+            setStatus('Falha ao carregar mapeamento.', true);
+            err('mapResp', mapResp);
+            renderResults((resp.data && resp.data.results) || [], null);
+          })
+          .finally(finishSearch);
       })
       .fail(function (xhr) {
         const msg = xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message
@@ -616,6 +937,7 @@ async function fillQueue(tasks) {
           : 'Erro na busca (AJAX).';
         setStatus(msg, true);
         err('xhr', xhr);
+        finishSearch();
       });
   });
 
@@ -626,154 +948,28 @@ async function fillQueue(tasks) {
     }
   });
 
-  $(document).on('click', '.openalex-biblio-item', function () {
-    const openalexId = $(this).data('id');
-    if (!openalexId) return;
+  $(document).on('click', '.openalex-biblio-toggle-details', function (e) {
+    e.preventDefault();
 
-    setStatus('Carregando mapeamento...', false);
+    const $btn = $(this);
+    const $details = $btn.closest('.openalex-biblio-item').find('.openalex-biblio-result-details');
+    const expanded = !$details.hasClass('is-hidden');
 
-    ajaxPost('tainacan_openalex_get_settings_mapping', {})
-      .done(function (mapResp) {
-        if (!mapResp || !mapResp.success) {
-          setStatus('Falha ao carregar mapeamento.', true);
-          err('mapResp', mapResp);
-          return;
-        }
+    if (expanded) {
+      $details.addClass('is-hidden');
+      $btn.text('Ver detalhes');
+    } else {
+      $details.removeClass('is-hidden');
+      $btn.text('Ocultar detalhes');
+    }
+  });
 
-        const map = (mapResp.data && mapResp.data.mapping) ? mapResp.data.mapping : {};
+  $(document).on('click', '.openalex-biblio-fill-btn', function (e) {
+    e.preventDefault();
 
-        setStatus('Carregando detalhes do OpenAlex...', false);
-
-        ajaxPost('tainacan_openalex_work_get', { id: openalexId })
-          .done(async function (resp) {
-            if (!resp || !resp.success) {
-              setStatus('Erro ao obter detalhes (AJAX).', true);
-              err('resp', resp);
-              return;
-            }
-
-            const work = (resp.data && resp.data.work) ? resp.data.work : {};
-            const debug = (resp.data && resp.data.debug) ? resp.data.debug : null;
-
-            log('[DEBUG] mapeamento recebido:', map);
-            log('[DEBUG] work normalizado recebido:', work);
-            log('[DEBUG] debug backend OpenAlex:', debug);
-
-            const authorsValues = normalizeMultiValue(work.authors_list || work.authors);
-
-            const candidates = [
-              {
-                field: 'title',
-                label: 'Título',
-                metadatumId: map.title,
-                value: normalizeText(work.title)
-              },
-              {
-                field: 'authors',
-                label: 'Autores',
-                metadatumId: map.authors,
-                value: authorsValues
-              },
-              {
-                field: 'year',
-                label: 'Ano',
-                metadatumId: map.year,
-                value: normalizeText(work.year)
-              },
-              {
-                field: 'doi',
-                label: 'DOI',
-                metadatumId: map.doi,
-                value: normalizeText(work.doi)
-              },
-              {
-                field: 'venue',
-                label: 'Periódico/Veículo',
-                metadatumId: map.venue,
-                value: normalizeText(work.venue)
-              },
-              {
-                field: 'url',
-                label: 'URL',
-                metadatumId: map.url,
-                value: normalizeText(work.url)
-              },
-              {
-                field: 'abnt',
-                label: 'Referência ABNT',
-                metadatumId: map.abnt,
-                value: normalizeText(work.abnt || '')
-              }
-            ];
-
-            renderWorkPreview(candidates);
-
-
-            console.table(candidates.map((candidate) => ({
-              campo: candidate.field,
-              rotulo: candidate.label,
-              metadatumId: candidate.metadatumId,
-              valor: Array.isArray(candidate.value) ? candidate.value.join(' | ') : candidate.value,
-              mapeado: !!parseInt(candidate.metadatumId, 10),
-              vazio: isRestValueEmpty(candidate.value)
-            })));
-
-            const tasks = candidates
-              .filter((candidate) => !!parseInt(candidate.metadatumId, 10))
-              .map((candidate) => ({
-                field: candidate.field,
-                label: candidate.label,
-                metadatumId: parseInt(candidate.metadatumId, 10),
-                value: candidate.value
-              }));
-
-            log('[DEBUG] tasks finais para REST:', tasks);
-
-            if (!tasks.length) {
-              setStatus('Nenhum campo mapeado para preencher.', true);
-              return;
-            }
-
-            setStatus('Enviando metadados ao Tainacan via API REST...', false);
-
-            const applied = await fillQueue(tasks);
-
-            $('#openalex-biblio-results').empty().hide();
-
-            if (applied > 0) {
-              setStatus(
-                'Metadados enviados ao Tainacan. Aguarde o recarregamento dos campos, revise os valores e depois clique em <strong>Create item</strong>.',
-                false
-              );
-            } else {
-              setStatus('Não consegui enviar metadados ao Tainacan. Veja o console (F12).', true);
-            }
-
-          })
-          .fail(function (xhr) {
-            const data = xhr && xhr.responseJSON && xhr.responseJSON.data
-              ? xhr.responseJSON.data
-              : {};
-
-            const message = data.message || 'Erro ao obter detalhes (AJAX).';
-
-            setStatus(message, true);
-
-            err('[DEBUG] Erro ao obter detalhes do work:', {
-              httpStatus: xhr ? xhr.status : null,
-              responseJSON: xhr ? xhr.responseJSON : null,
-              responseText: xhr ? xhr.responseText : null,
-              openalexUrl: data.openalex_url || null,
-              idOriginal: data.id_original || null,
-              openalexStatus: data.status || null,
-              body: data.body || null
-            });
-          });
-      })
-      .fail(function (xhr) {
-        setStatus('Erro ao carregar mapeamento (AJAX).', true);
-        err('xhr', xhr);
-      });
+    const $btn = $(this);
+    const openalexId = $btn.closest('.openalex-biblio-item').data('id');
+    fillWorkFromOpenAlex(openalexId, $btn);
   });
 
   setTimeout(syncPlaceholder, 50);
