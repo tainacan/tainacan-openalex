@@ -40,8 +40,9 @@
           <input type="text" id="openalex-biblio-query" placeholder="${SEARCH_PLACEHOLDERS.free}" />
           <button type="button" class="button button-primary" id="openalex-biblio-search">Buscar</button>
         </div>
-        <div class="openalex-biblio-help">A seleção do resultado e o preenchimento automático continuam funcionando como antes.</div>
+        <div class="openalex-biblio-help">A seleção do resultado salva os valores diretamente via API REST do Tainacan.</div>
         <div id="openalex-biblio-status" style="margin-top:.75rem;"></div>
+        <div id="openalex-biblio-preview" class="openalex-biblio-preview" style="margin-top:.75rem;"></div>
         <ul id="openalex-biblio-results" class="openalex-biblio-results"></ul>
       </div>
     `;
@@ -63,6 +64,68 @@
     $st.html(html || '');
     $st.css('color', isError ? '#b32d2e' : 'inherit');
   }
+
+  function clearWorkPreview() {
+  $('#openalex-biblio-preview').empty();
+  }
+
+function renderWorkPreview(candidates) {
+  const $preview = $('#openalex-biblio-preview');
+
+  if (!$preview.length) {
+    return;
+  }
+
+  if (!Array.isArray(candidates) || !candidates.length) {
+    $preview.empty();
+    return;
+  }
+
+  const rows = candidates.map((candidate) => {
+    const value = Array.isArray(candidate.value)
+      ? candidate.value.join(' | ')
+      : normalizeText(candidate.value);
+
+    const mapped = !!parseInt(candidate.metadatumId, 10);
+    const empty = isRestValueEmpty(candidate.value);
+
+    let status = 'Será enviado';
+
+    if (!mapped) {
+      status = 'Não mapeado';
+    } else if (empty) {
+      status = 'Valor vazio';
+    }
+
+    return `
+      <tr>
+        <td><strong>${escapeHtml(candidate.label || candidate.field)}</strong></td>
+        <td>${escapeHtml(value || '—')}</td>
+        <td>${escapeHtml(status)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  $preview.html(`
+    <div class="openalex-biblio-preview-box">
+      <strong>Valores retornados pelo OpenAlex</strong>
+
+      <table class="widefat striped" style="margin-top:.5rem;">
+        <thead>
+          <tr>
+            <th>Campo</th>
+            <th>Valor</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </div>
+  `);
+}
+
 
   function escapeHtml(s) {
     return String(s || '').replace(/[&<>"']/g, (m) => ({
@@ -169,164 +232,61 @@ function normalizeMultiValue(v) {
     return $.post(ajaxUrl, Object.assign({ action, nonce }, data || {}));
   }
 
-  // =========================
-  // Metadatum helpers
-  // =========================
-  function expandMetadatumIfCollapsed(metadatumId) {
-    const id = parseInt(metadatumId, 10);
-    if (!id) return false;
 
-    const handle = document.querySelector(`[aria-controls="tainacan-item-metadatum_id-${id}"]`);
-    if (!handle) return false;
 
-    const expanded = handle.getAttribute('aria-expanded');
-    if (expanded === 'false') {
-      handle.click();
-      return true;
+// issue 15
+function parseTainacanItemIdFromString(source) {
+  const text = decodeURIComponent(String(source || ''));
+
+  const patterns = [
+    /\/tainacan\/v2\/items\/(\d+)(?:[/?#]|$)/i,
+    /\/tainacan\/v2\/item\/(\d+)(?:[/?#]|$)/i,
+
+    /rest_route=\/tainacan\/v2\/items\/(\d+)(?:[&?#/]|$)/i,
+    /rest_route=\/tainacan\/v2\/item\/(\d+)(?:[&?#/]|$)/i,
+
+    /\/items\/(\d+)(?:[/?#]|$)/i,
+    /\/item\/(\d+)(?:[/?#]|$)/i,
+
+    /item_id[=/](\d+)/i,
+    /[?&]item_id=(\d+)/i,
+    /[?&]item=(\d+)/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+
+    if (match && match[1]) {
+      const id = parseInt(match[1], 10);
+
+      if (id > 0) {
+        return id;
+      }
     }
-    return false;
   }
 
-  function findBestProxyForTextMetadatum(host) {
-    const nodes = [host, ...host.querySelectorAll('*')];
-    const scored = [];
-
-    for (const el of nodes) {
-      const comp = el.__vueParentComponent || el.__vue__;
-      const proxy = comp && (comp.proxy || comp);
-      if (!proxy) continue;
-
-      const hasHandler =
-        (typeof proxy.changeValue === 'function') ||
-        (typeof proxy.onInput === 'function') ||
-        (proxy.itemMetadatum !== undefined);
-
-      if (!hasHandler) continue;
-
-      let score = 0;
-      if (typeof proxy.changeValue === 'function') score += 10;
-      if (typeof proxy.onInput === 'function') score += 7;
-      if (typeof proxy.onBlur === 'function') score += 6;
-      if (proxy.itemMetadatum) score += 7;
-
-      scored.push({ proxy, score });
-    }
-
-    scored.sort((a, b) => b.score - a.score);
-    return scored.length ? scored[0].proxy : null;
-  }
-
-  function ensureVueMounted(metadatumId, attempt = 0) {
-    const id = parseInt(metadatumId, 10);
-    if (!id) return Promise.resolve(false);
-
-    expandMetadatumIfCollapsed(id);
-
-    const host = document.querySelector('#tainacan-item-metadatum_id-' + id);
-    if (host) {
-      const proxy = findBestProxyForTextMetadatum(host);
-      if (proxy) return Promise.resolve(true);
-    }
-
-    if (attempt >= 45) return Promise.resolve(false);
-    return new Promise((resolve) =>
-      setTimeout(() => resolve(ensureVueMounted(id, attempt + 1)), 120)
-    );
-  }
-
-
-function getEditableValueInputs(metadatumId) {
-  const id = parseInt(metadatumId, 10);
-  if (!id) return [];
-
-  const host = document.querySelector('#tainacan-item-metadatum_id-' + id);
-  if (!host) return [];
-
-  const searchRoots = [
-    host,
-    host.parentElement,
-    host.closest('.tainacan-form-item'),
-    host.closest('[id^="metadatum-index--"]')
-  ].filter(Boolean);
-
-  const seen = new Set();
-  const inputs = [];
-
-  for (const root of searchRoots) {
-    const found = Array.from(
-      root.querySelectorAll('input:not([type="hidden"]), textarea')
-    ).filter((el) => {
-      if (el.disabled || el.readOnly) return false;
-      if (seen.has(el)) return false;
-      seen.add(el);
-      return true;
-    });
-
-    inputs.push(...found);
-  }
-
-  return inputs;
+  return 0;
 }
 
+function findTainacanItemEditionProxy() {
+  const nodes = Array.from(document.querySelectorAll('*'));
 
-function findBestProxyForInputEl(inputEl) {
-  if (!inputEl) return null;
-
-  const candidates = [
-    inputEl,
-    inputEl.parentElement,
-    inputEl.closest('.control'),
-    inputEl.closest('.field'),
-    inputEl.closest('.tainacan-form-item')
-  ].filter(Boolean);
-
-  for (const el of candidates) {
-    const nodes = [el, ...el.querySelectorAll('*')];
-    for (const node of nodes) {
-      const comp = node.__vueParentComponent || node.__vue__;
-      const proxy = comp && (comp.proxy || comp);
-      if (!proxy) continue;
-
-      const hasHandler =
-        (typeof proxy.changeValue === 'function') ||
-        (typeof proxy.onInput === 'function') ||
-        (proxy.itemMetadatum !== undefined);
-
-      if (hasHandler) return proxy;
-    }
-  }
-
-  return null;
-}
-
-function findFormItemProxy(metadatumId) {
-  const id = parseInt(metadatumId, 10);
-  if (!id) return null;
-
-  const host = document.querySelector('#tainacan-item-metadatum_id-' + id);
-  if (!host) return null;
-
-  const seeds = [
-    host,
-    host.parentElement,
-    host.closest('.field'),
-    host.closest('.tainacan-form-item'),
-    host.closest('[id^="metadatum-index--"]')
-  ].filter(Boolean);
-
-  for (const seed of seeds) {
-    let comp = seed.__vueParentComponent || seed.__vue__ || null;
+  for (const node of nodes) {
+    let comp = node.__vueParentComponent || node.__vue__ || null;
 
     while (comp) {
       const proxy = comp.proxy || comp;
 
-      const looksLikeFormItem =
+      const looksLikeItemEditionForm =
         proxy &&
-        Array.isArray(proxy.values) &&
-        typeof proxy.performValueChange === 'function' &&
-        typeof proxy.addValue === 'function';
+        proxy.itemId !== undefined &&
+        (
+          typeof proxy.loadItemMetadata === 'function' ||
+          typeof proxy.handleExternalMetadataReloadEvent === 'function' ||
+          Array.isArray(proxy.itemMetadata)
+        );
 
-      if (looksLikeFormItem) {
+      if (looksLikeItemEditionForm) {
         return proxy;
       }
 
@@ -337,278 +297,290 @@ function findFormItemProxy(metadatumId) {
   return null;
 }
 
-async function setMultipleTextValuesInExistingInputs(metadatumId, rawValues) {
-  const id = parseInt(metadatumId, 10);
-  if (!id) return 0;
+function getCurrentTainacanItemIdFromVue() {
+  const proxy = findTainacanItemEditionProxy();
 
-  const values = normalizeMultiValue(rawValues);
-  if (!values.length) return 0;
-
-  try {
-    // Garante que o Tainacan criou inputs suficientes para todos os autores.
-    await ensureEnoughValueInputs(id, values.length);
-
-    // Dá tempo para o Vue/Tainacan renderizar os novos campos.
-    await new Promise(r => setTimeout(r, 300));
-
-    const inputs = getEditableValueInputs(id);
-
-    if (!inputs.length) {
-      err('Nenhum input encontrado para o metadado multivalorado', id);
-      return 0;
-    }
-
-    let applied = 0;
-
-    // Primeiro limpamos os inputs visíveis para evitar valor vazio antes do autor.
-    inputs.forEach((inputEl) => {
-      try {
-        const isTextarea = inputEl.tagName.toLowerCase() === 'textarea';
-        const prototype = isTextarea
-          ? window.HTMLTextAreaElement.prototype
-          : window.HTMLInputElement.prototype;
-
-        const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
-        const nativeSetter = descriptor && descriptor.set;
-
-        if (nativeSetter) {
-          nativeSetter.call(inputEl, '');
-        } else {
-          inputEl.value = '';
-        }
-
-        inputEl.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-        inputEl.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
-      } catch (e) {
-        err('Erro ao limpar input multivalorado', id, e);
-      }
-    });
-
-    // Agora preenche cada autor em um input, começando pelo primeiro campo.
-    values.forEach((value, index) => {
-      const inputEl = inputs[index];
-      if (!inputEl) return;
-
-      try {
-        inputEl.focus();
-
-        const isTextarea = inputEl.tagName.toLowerCase() === 'textarea';
-        const prototype = isTextarea
-          ? window.HTMLTextAreaElement.prototype
-          : window.HTMLInputElement.prototype;
-
-        const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
-        const nativeSetter = descriptor && descriptor.set;
-
-        if (nativeSetter) {
-          nativeSetter.call(inputEl, value);
-        } else {
-          inputEl.value = value;
-        }
-
-        inputEl.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-        inputEl.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
-
-        inputEl.blur();
-
-        applied++;
-      } catch (e) {
-        err('Erro ao preencher autor no campo multivalorado', id, value, e);
-      }
-    });
-
-        // Além de preencher os inputs visíveis, sincroniza o estado interno do Tainacan.
-    // Sem isso, a tela mostra os autores, mas o "Create item" pode salvar apenas um deles.
-    const formItemProxy = findFormItemProxy(id);
-
-    if (formItemProxy && Array.isArray(formItemProxy.values)) {
-      try {
-        while (formItemProxy.values.length < values.length) {
-          if (typeof formItemProxy.addValue === 'function') {
-            formItemProxy.addValue();
-          } else {
-            formItemProxy.values.push('');
-          }
-        }
-
-        while (formItemProxy.values.length > values.length) {
-          if (typeof formItemProxy.removeValue === 'function') {
-            formItemProxy.removeValue(formItemProxy.values.length - 1);
-          } else {
-            formItemProxy.values.pop();
-          }
-        }
-
-        formItemProxy.values.splice(0, formItemProxy.values.length, ...values);
-
-        if (Array.isArray(formItemProxy.invalidEmptyMultivalueIndex)) {
-          formItemProxy.invalidEmptyMultivalueIndex = [];
-        }
-
-        if (typeof formItemProxy.performValueChange === 'function') {
-          formItemProxy.performValueChange();
-        }
-
-        log('Estado interno do Tainacan sincronizado para autores:', id, formItemProxy.values);
-      } catch (e) {
-        err('Erro ao sincronizar estado interno multivalorado', id, e);
-      }
-    }
-
-    log('Autores aplicados no metadado multivalorado:', id, values);
-
-    return applied;
-  } catch (e) {
-    err('Erro geral ao preencher metadado multivalorado', id, e);
+  if (!proxy) {
+    log('[DEBUG] Componente Vue de edição do item não encontrado.');
     return 0;
   }
-}
 
-function clickAddValueButton(metadatumId) {
-  const id = parseInt(metadatumId, 10);
-  if (!id) return false;
+  const itemId = parseInt(proxy.itemId, 10);
 
-  const host = document.querySelector('#tainacan-item-metadatum_id-' + id);
-  if (!host) return false;
-
-  const searchRoots = [
-    host,
-    host.parentElement,
-    host.closest('.tainacan-form-item'),
-    host.closest('[id^="metadatum-index--"]')
-  ].filter(Boolean);
-
-  let addControl = null;
-
-  for (const root of searchRoots) {
-    const controls = Array.from(root.querySelectorAll('button, a, [role="button"]'));
-
-    addControl = controls.find((el) => {
-      const text = (el.textContent || '').trim();
-      return /add value/i.test(text);
-    });
-
-    if (addControl) break;
+  if (itemId > 0) {
+    log('[DEBUG] itemId encontrado no componente Vue do Tainacan:', itemId);
+    return itemId;
   }
 
-  if (!addControl) return false;
+  log('[DEBUG] Componente Vue encontrado, mas itemId inválido:', proxy.itemId);
+
+  return 0;
+}
+
+function getCurrentTainacanItemId() {
+  const idFromVue = getCurrentTainacanItemIdFromVue();
+
+  if (idFromVue) {
+    return idFromVue;
+  }
+
+  const idFromUrl = parseTainacanItemIdFromString(window.location.href || '');
+
+  if (idFromUrl) {
+    log('[DEBUG] itemId encontrado pela URL:', idFromUrl);
+    return idFromUrl;
+  }
+
+  const domCandidates = [
+    'input[name="item_id"]',
+    'input[name="itemId"]',
+    'input[name="item[id]"]',
+    '[data-item-id]',
+    '[data-itemid]'
+  ];
+
+  for (const selector of domCandidates) {
+    const el = document.querySelector(selector);
+
+    if (!el) {
+      continue;
+    }
+
+    const rawValue =
+      el.value ||
+      el.getAttribute('data-item-id') ||
+      el.getAttribute('data-itemid') ||
+      '';
+
+    const idFromDom = parseInt(rawValue, 10);
+
+    if (idFromDom > 0) {
+      log('[DEBUG] itemId encontrado no DOM:', idFromDom, selector);
+      return idFromDom;
+    }
+  }
 
   try {
-    addControl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-    addControl.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-    addControl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    return true;
-  } catch (e) {
-    err('Erro ao clicar em Add value', id, e);
-    return false;
-  }
-}
+    if (window.performance && typeof window.performance.getEntriesByType === 'function') {
+      const entries = window.performance
+        .getEntriesByType('resource')
+        .slice()
+        .reverse();
 
-async function ensureEnoughValueInputs(metadatumId, neededCount) {
-  const id = parseInt(metadatumId, 10);
-  if (!id || neededCount <= 0) return 0;
+      for (const entry of entries) {
+        const url = entry && entry.name ? entry.name : '';
+        const decodedUrl = decodeURIComponent(url);
 
-  let currentCount = getEditableValueInputs(id).length;
-  let attempts = 0;
-
-  while (currentCount < neededCount && attempts < 10) {
-    const clicked = clickAddValueButton(id);
-    if (!clicked) break;
-
-    await new Promise(r => setTimeout(r, 250));
-    currentCount = getEditableValueInputs(id).length;
-    attempts++;
-  }
-
-  return currentCount;
-}
-
-  function setAndCommitTextValue(metadatumId, rawValue) {
-    const id = parseInt(metadatumId, 10);
-    if (!id) return false;
-
-    const host = document.querySelector('#tainacan-item-metadatum_id-' + id);
-    if (!host) return false;
-
-    const value = normalizeText(rawValue);
-    const proxy = findBestProxyForTextMetadatum(host);
-
-    if (proxy) {
-      try { if (proxy.newValue !== undefined) proxy.newValue = value; } catch (e) {}
-      try { if (proxy.internalValue !== undefined) proxy.internalValue = value; } catch (e) {}
-      try { if (typeof proxy.onInput === 'function') proxy.onInput(value); } catch (e) {}
-
-      try {
-        if (typeof proxy.$emit === 'function') {
-          proxy.$emit('update:modelValue', value);
-          proxy.$emit('input', value);
-        }
-      } catch (e) {}
-    }
-
-    const inputEls = host.querySelectorAll('input:not([type="hidden"]), textarea');
-
-    inputEls.forEach(inputEl => {
-      try {
-        inputEl.focus();
-
-        const isTextarea = inputEl.tagName.toLowerCase() === 'textarea';
-        const prototype = isTextarea ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-        const nativeSetter = Object.getOwnPropertyDescriptor(prototype, 'value').set;
-
-        if (nativeSetter) {
-          nativeSetter.call(inputEl, value);
-        } else {
-          inputEl.value = value;
+        if (!url || !/tainacan\/v2/i.test(decodedUrl)) {
+          continue;
         }
 
-        if (inputEl.__v_model) inputEl.__v_model.value = value;
+        const idFromRequest = parseTainacanItemIdFromString(url);
 
-        inputEl.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-        inputEl.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
-
-        inputEl.blur();
-      } catch (e) {
-        err('Erro ao injetar valor via DOM no campo', id, e);
+        if (idFromRequest) {
+          log('[DEBUG] itemId encontrado em chamada REST recente:', idFromRequest, url);
+          return idFromRequest;
+        }
       }
+    }
+  } catch (e) {
+    err('[DEBUG] Erro ao tentar encontrar itemId em chamadas REST recentes:', e);
+  }
+
+  err('[DEBUG] Nenhum itemId foi encontrado.');
+  return 0;
+}
+
+function normalizeRestValue(rawValue) {
+  if (Array.isArray(rawValue)) {
+    return normalizeMultiValue(rawValue);
+  }
+
+  return normalizeText(rawValue).trim();
+}
+
+function isRestValueEmpty(value) {
+  return (
+    value === '' ||
+    value == null ||
+    (Array.isArray(value) && value.length === 0)
+  );
+}
+
+async function fillQueue(tasks) {
+  console.group('[OpenAlexBiblio][DEBUG] fillQueue REST');
+
+  log('[DEBUG] tasks recebidas:', tasks);
+
+  const itemId = getCurrentTainacanItemId();
+
+  log('[DEBUG] itemId detectado:', itemId);
+
+  if (!itemId) {
+    console.groupEnd();
+
+    setStatus(
+      'Não foi possível identificar o item atual para salvar os metadados via API.',
+      true
+    );
+
+    return 0;
+  }
+
+  if (!window.wp || !window.wp.apiFetch) {
+    console.groupEnd();
+
+    setStatus(
+      'A API REST do WordPress não está disponível nesta tela.',
+      true
+    );
+
+    return 0;
+  }
+
+  let applied = 0;
+  const successful = [];
+  const skipped = [];
+  const failed = [];
+
+  console.table(tasks.map((task) => ({
+    campo: task.field,
+    metadatumId: task.metadatumId,
+    valor: Array.isArray(task.value) ? task.value.join(' | ') : task.value
+  })));
+
+  for (const task of tasks) {
+    const field = task.field || '(sem campo)';
+    const metadatumId = parseInt(task.metadatumId, 10);
+    const values = normalizeRestValue(task.value);
+
+    log('[DEBUG] preparando metadado:', {
+      field,
+      metadatumId,
+      originalValue: task.value,
+      normalizedValues: values
     });
 
-    log('Commit Blindado OK:', id, value);
-    return true;
-  }
+    if (!metadatumId) {
+      skipped.push({
+        field,
+        metadatumId,
+        reason: 'metadatumId inválido'
+      });
 
-  async function fillQueue(tasks) {
-    let applied = 0;
+      err('[DEBUG] metadatumId inválido. Campo ignorado:', {
+        field,
+        metadatumId,
+        task
+      });
 
-    for (const [mid, val] of tasks) {
-      const okMount = await ensureVueMounted(mid);
-      if (!okMount) {
-        err('Não montou metadado (sem proxy Vue)', mid);
-        continue;
-      }
-
-      await new Promise(r => setTimeout(r, 200));
-
-      const values = Array.isArray(val) ? val : [val];
-
-      let count = 0;
-      if (Array.isArray(val)) {
-        count = await setMultipleTextValuesInExistingInputs(mid, values);
-      }
-
-      if (!count) {
-        const firstValue = values.length ? values[0] : '';
-        const ok = setAndCommitTextValue(mid, firstValue);
-        if (ok) count = 1;
-      }
-
-      applied += count;
-
-      await new Promise(r => setTimeout(r, 800));
+      continue;
     }
 
-    return applied;
+    if (isRestValueEmpty(values)) {
+      skipped.push({
+        field,
+        metadatumId,
+        reason: 'valor vazio'
+      });
+
+      err('[DEBUG] valor vazio. Campo ignorado:', {
+        field,
+        metadatumId,
+        values
+      });
+
+      continue;
+    }
+
+    const request = {
+      path: `/tainacan/v2/item/${itemId}/metadata/${metadatumId}`,
+      method: 'POST',
+      data: {
+        values: values
+      }
+    };
+
+    try {
+      log('[DEBUG] POST REST metadado:', request);
+
+      const response = await window.wp.apiFetch(request);
+
+      applied++;
+
+      successful.push({
+        field,
+        metadatumId,
+        values,
+        response
+      });
+
+      log('[DEBUG] POST REST sucesso:', {
+        field,
+        metadatumId,
+        values,
+        response
+      });
+
+    } catch (e) {
+      failed.push({
+        field,
+        metadatumId,
+        values,
+        error: e
+      });
+
+      err('[DEBUG] POST REST erro:', {
+        field,
+        metadatumId,
+        values,
+        error: e
+      });
+    }
   }
+
+  log('[DEBUG] resumo REST:', {
+    itemId,
+    applied,
+    successful,
+    skipped,
+    failed
+  });
+
+  if (successful.length === 1) {
+    window.dispatchEvent(
+      new CustomEvent('TainacanReloadItemMetadataForm', {
+        detail: {
+          itemId: itemId,
+          metadatumId: successful[0].metadatumId
+        }
+      })
+    );
+
+    log('[DEBUG] evento disparado para um metadado:', {
+      itemId: itemId,
+      metadatumId: successful[0].metadatumId
+    });
+
+  } else if (successful.length > 1) {
+    window.dispatchEvent(
+      new CustomEvent('TainacanReloadItemMetadataForm')
+    );
+
+    log('[DEBUG] evento disparado uma vez para recarregar todo o formulário:', {
+      itemId: itemId,
+      metadatumIds: successful.map((item) => item.metadatumId)
+    });
+  }
+
+  console.groupEnd();
+
+  return applied;
+}
+
+// fim issue 15
+
+ 
 
   // =========================
   // UI events
@@ -624,6 +596,7 @@ async function ensureEnoughValueInputs(metadatumId, neededCount) {
     if (!q) { setStatus('Digite algo para buscar.', true); return; }
 
     setStatus('Buscando no OpenAlex...', false);
+    clearWorkPreview();
     $('#openalex-biblio-results').empty().show();
 
     ajaxPost('tainacan_openalex_work_search', { q, search_type: searchType })
@@ -680,39 +653,121 @@ async function ensureEnoughValueInputs(metadatumId, neededCount) {
             }
 
             const work = (resp.data && resp.data.work) ? resp.data.work : {};
+            const debug = (resp.data && resp.data.debug) ? resp.data.debug : null;
+
+            log('[DEBUG] mapeamento recebido:', map);
+            log('[DEBUG] work normalizado recebido:', work);
+            log('[DEBUG] debug backend OpenAlex:', debug);
 
             const authorsValues = normalizeMultiValue(work.authors_list || work.authors);
 
-            const tasks = [
-              ...(map.title   ? [[map.title,   normalizeText(work.title)]] : []),
-              ...(map.authors ? [[map.authors, authorsValues]] : []),
-              ...(map.year    ? [[map.year,    normalizeText(work.year)]] : []),
-              ...(map.doi     ? [[map.doi,     normalizeText(work.doi)]] : []),
-              ...(map.venue   ? [[map.venue,   normalizeText(work.venue)]] : []),
-              ...(map.url     ? [[map.url,     normalizeText(work.url)]] : []),
-              ...(map.abnt    ? [[map.abnt,    normalizeText(work.abnt || '')]] : []),
-            ].filter(([mid]) => !!parseInt(mid, 10));
+            const candidates = [
+              {
+                field: 'title',
+                label: 'Título',
+                metadatumId: map.title,
+                value: normalizeText(work.title)
+              },
+              {
+                field: 'authors',
+                label: 'Autores',
+                metadatumId: map.authors,
+                value: authorsValues
+              },
+              {
+                field: 'year',
+                label: 'Ano',
+                metadatumId: map.year,
+                value: normalizeText(work.year)
+              },
+              {
+                field: 'doi',
+                label: 'DOI',
+                metadatumId: map.doi,
+                value: normalizeText(work.doi)
+              },
+              {
+                field: 'venue',
+                label: 'Periódico/Veículo',
+                metadatumId: map.venue,
+                value: normalizeText(work.venue)
+              },
+              {
+                field: 'url',
+                label: 'URL',
+                metadatumId: map.url,
+                value: normalizeText(work.url)
+              },
+              {
+                field: 'abnt',
+                label: 'Referência ABNT',
+                metadatumId: map.abnt,
+                value: normalizeText(work.abnt || '')
+              }
+            ];
+
+            renderWorkPreview(candidates);
+
+
+            console.table(candidates.map((candidate) => ({
+              campo: candidate.field,
+              rotulo: candidate.label,
+              metadatumId: candidate.metadatumId,
+              valor: Array.isArray(candidate.value) ? candidate.value.join(' | ') : candidate.value,
+              mapeado: !!parseInt(candidate.metadatumId, 10),
+              vazio: isRestValueEmpty(candidate.value)
+            })));
+
+            const tasks = candidates
+              .filter((candidate) => !!parseInt(candidate.metadatumId, 10))
+              .map((candidate) => ({
+                field: candidate.field,
+                label: candidate.label,
+                metadatumId: parseInt(candidate.metadatumId, 10),
+                value: candidate.value
+              }));
+
+            log('[DEBUG] tasks finais para REST:', tasks);
 
             if (!tasks.length) {
               setStatus('Nenhum campo mapeado para preencher.', true);
               return;
             }
 
-            setStatus('Preenchendo campos...', false);
+            setStatus('Enviando metadados ao Tainacan via API REST...', false);
 
             const applied = await fillQueue(tasks);
 
             $('#openalex-biblio-results').empty().hide();
 
             if (applied > 0) {
-              setStatus('Preenchido! Agora clique em <strong>Salvar</strong>.', false);
+              setStatus(
+                'Metadados enviados ao Tainacan. Aguarde o recarregamento dos campos, revise os valores e depois clique em <strong>Create item</strong>.',
+                false
+              );
             } else {
-              setStatus('Não consegui aplicar valores nos campos. Veja o console (F12).', true);
+              setStatus('Não consegui enviar metadados ao Tainacan. Veja o console (F12).', true);
             }
+
           })
           .fail(function (xhr) {
-            setStatus('Erro ao obter detalhes (AJAX).', true);
-            err('xhr', xhr);
+            const data = xhr && xhr.responseJSON && xhr.responseJSON.data
+              ? xhr.responseJSON.data
+              : {};
+
+            const message = data.message || 'Erro ao obter detalhes (AJAX).';
+
+            setStatus(message, true);
+
+            err('[DEBUG] Erro ao obter detalhes do work:', {
+              httpStatus: xhr ? xhr.status : null,
+              responseJSON: xhr ? xhr.responseJSON : null,
+              responseText: xhr ? xhr.responseText : null,
+              openalexUrl: data.openalex_url || null,
+              idOriginal: data.id_original || null,
+              openalexStatus: data.status || null,
+              body: data.body || null
+            });
           });
       })
       .fail(function (xhr) {
