@@ -1,8 +1,14 @@
 <?php
 /**
- * Plugin Name: Tainacan OpenAlex Bibliografia (Form Hook)
- * Description: Busca dados bibliográficos no OpenAlex e preenche metadados no Tainacan (UI via Admin Form Hook).
- * Version: 0.4.0
+ * Plugin Name: Tainacan OpenAlex
+ * Description: Busca dados bibliográficos no OpenAlex e preenche metadados no Tainacan.
+ * Version: 0.4.3
+ * License: GPL v3 or later
+ * Requires at least: 6.0
+ * Tested up to: 7.0
+ * Requires PHP: 7.4
+ * Stable tag: 0.4.3
+ * Requires Plugins: tainacan
  */
 
 namespace Tainacan {
@@ -23,7 +29,7 @@ namespace {
 
 if (!defined('ABSPATH')) exit;
 
-class Tainacan_OpenAlex_Biblio_MVP {
+class Tainacan_OpenAlex_Biblio {
 
     const NONCE_ACTION = 'tainacan_openalex_biblio_nonce';
 
@@ -46,7 +52,10 @@ class Tainacan_OpenAlex_Biblio_MVP {
 
     public function enqueue_assets_wp($hook) {
         // admin SPA do Tainacan
-        if (!isset($_GET['page']) || $_GET['page'] !== 'tainacan_admin') return;
+        /* phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only page identification for asset loading; no form processing. */
+        if (!isset($_GET['page']) || $_GET['page'] !== 'tainacan_admin') {
+            return;
+        }
         $this->enqueue_assets();
     }
 
@@ -57,14 +66,16 @@ class Tainacan_OpenAlex_Biblio_MVP {
             'tainacan-openalex-biblio',
             $url . 'assets/openalex-biblio.css',
             [],
-            '0.4.0'
+            '0.4.3'
         );
+
+        $js_path = plugin_dir_path(__FILE__) . 'assets/openalex-biblio.js';
 
         wp_enqueue_script(
             'tainacan-openalex-biblio',
             $url . 'assets/openalex-biblio.js',
-            ['jquery'],
-            '0.4.0',
+            ['jquery', 'wp-api-fetch'],
+            file_exists($js_path) ? filemtime($js_path) : '0.4.3',
             true
         );
 
@@ -79,38 +90,276 @@ class Tainacan_OpenAlex_Biblio_MVP {
     // =========================================
     public function register_admin_hooks() {
         if (!function_exists('tainacan_register_admin_hook')) return;
-
+    
+        $collection_id = $this->get_opt_int('openalex_references_collection_id');
+        if ($collection_id <= 0) return;
+    
         tainacan_register_admin_hook(
             'item',
             [$this, 'render_item_hook'],
-            'begin-left'
+            'begin-left',
+            [
+                'collectionId' => (string) $collection_id,
+            ]
         );
     }
 
     public function render_item_hook() {
         ob_start();
         ?>
-        <div class="field form-hook-region">
-            <h4 style="margin:0 0 .5rem 0;"><?php esc_html_e('OpenAlex (Bibliografia)', 'tainacan-openalex-biblio'); ?></h4>
-            <p class="help" style="margin:.25rem 0 1rem 0;opacity:.85;">
-                <?php esc_html_e('Pesquise e clique em um resultado para preencher os metadados deste item.', 'tainacan-openalex-biblio'); ?>
+        <h4><?php esc_html_e('OpenAlex', 'tainacan-openalex'); ?></h4>
+        <div class="field openalex-biblio-hook">
+            <label class="label"><?php esc_html_e('Preencher bibliografia', 'tainacan-openalex'); ?></label>
+            <p class="help">
+                <?php esc_html_e('Pesquise e clique em um resultado para preencher os metadados do item.', 'tainacan-openalex'); ?>
             </p>
-
-            <!-- ✅ root controlado pelo JS -->
             <div id="openalex-biblio-hook-root"></div>
         </div>
         <?php
         return ob_get_clean();
     }
 
+    private function get_collections_select_options_html(): string {
+    if (!class_exists('\\Tainacan\\Repositories\\Collections')) {
+        return '<option value="">' . esc_html__('Selecione uma coleção', 'tainacan-openalex') . '</option>';
+    }
+
+    $options = '<option value="">' . esc_html__('Selecione uma coleção', 'tainacan-openalex') . '</option>';
+
+    try {
+        $collections_repo = \Tainacan\Repositories\Collections::get_instance();
+        $collections = $collections_repo->fetch([], 'OBJECT');
+
+        if (is_array($collections)) {
+            foreach ($collections as $collection) {
+                if (!is_object($collection) || !method_exists($collection, 'get_id') || !method_exists($collection, 'get_name')) {
+                    continue;
+                }
+
+                $options .= sprintf(
+                    '<option value="%d">%s</option>',
+                    (int) $collection->get_id(),
+                    esc_html($collection->get_name())
+                );
+            }
+        }
+    } catch (\Throwable $e) {
+        return $options;
+    }
+
+    return $options;
+}
+
+
+private function get_metadata_select_options_html(array $allowed_metadata_types = []): string {
+    if (!class_exists('\\Tainacan\\Repositories\\Metadata')) {
+        return '<option value="0">' . esc_html__('Selecione um metadado', 'tainacan-openalex') . '</option>';
+    }
+
+    $collection_id = (int) get_option('tainacan_option_openalex_references_collection_id', 0);
+
+    $options = '<option value="0">' . esc_html__('Selecione um metadado', 'tainacan-openalex') . '</option>';
+
+    if ($collection_id <= 0) {
+        return $options;
+    }
+
+    try {
+        $metadata_repo = \Tainacan\Repositories\Metadata::get_instance();
+        $metadata_list = $metadata_repo->fetch([
+            'collection_id' => $collection_id
+        ], 'OBJECT');
+
+        if (is_array($metadata_list)) {
+            foreach ($metadata_list as $metadatum) {
+                if (
+                    !is_object($metadatum) ||
+                    !method_exists($metadatum, 'get_id') ||
+                    !method_exists($metadatum, 'get_name') ||
+                    !method_exists($metadatum, 'get_metadata_type')
+                ) {
+                    continue;
+                }
+
+                $metadata_type = (string) $metadatum->get_metadata_type();
+
+                if (!empty($allowed_metadata_types) && !in_array($metadata_type, $allowed_metadata_types, true)) {
+                    continue;
+                }
+
+                $options .= sprintf(
+                    '<option value="%d">%s</option>',
+                    (int) $metadatum->get_id(),
+                    esc_html($metadatum->get_name())
+                );
+            }
+        }
+    } catch (\Throwable $e) {
+        return $options;
+    }
+
+    return $options;
+}
+
+// issue 11
+    private function get_openalex_mapping_options(): array {
+        return [
+            'openalex_map_title'   => __('Título', 'tainacan-openalex'),
+            'openalex_map_authors' => __('Autores', 'tainacan-openalex'),
+            'openalex_map_year'    => __('Ano', 'tainacan-openalex'),
+            'openalex_map_doi'     => __('DOI', 'tainacan-openalex'),
+            'openalex_map_venue'   => __('Periódico/Veículo', 'tainacan-openalex'),
+            'openalex_map_url'     => __('URL', 'tainacan-openalex'),
+            'openalex_map_abnt'    => __('Referência ABNT', 'tainacan-openalex'),
+        ];
+    }
+
+    private function get_submitted_openalex_mapping_values(): array {
+        $values = [];
+
+        foreach (array_keys($this->get_openalex_mapping_options()) as $option_id) {
+            $wp_option_name = 'tainacan_option_' . $option_id;
+
+            if (isset($_POST[$wp_option_name])) {
+                $values[$option_id] = absint(wp_unslash($_POST[$wp_option_name]));
+            } else {
+                $values[$option_id] = absint(get_option($wp_option_name, 0));
+            }
+        }
+
+        return $values;
+    }
+
+    private function get_tainacan_metadatum_name_by_id(int $metadatum_id): string {
+        if ($metadatum_id <= 0) {
+            return __('metadado não informado', 'tainacan-openalex');
+        }
+
+        if (!class_exists('\\Tainacan\\Repositories\\Metadata')) {
+            return sprintf(__('ID %d', 'tainacan-openalex'), $metadatum_id);
+        }
+
+        $collection_id = absint(get_option('tainacan_option_openalex_references_collection_id', 0));
+
+        if ($collection_id <= 0) {
+            return sprintf(__('ID %d', 'tainacan-openalex'), $metadatum_id);
+        }
+
+        try {
+            $metadata_repo = \Tainacan\Repositories\Metadata::get_instance();
+
+            $metadata_list = $metadata_repo->fetch([
+                'collection_id' => $collection_id,
+            ], 'OBJECT');
+
+            if (is_array($metadata_list)) {
+                foreach ($metadata_list as $metadatum) {
+                    if (
+                        is_object($metadatum) &&
+                        method_exists($metadatum, 'get_id') &&
+                        method_exists($metadatum, 'get_name') &&
+                        absint($metadatum->get_id()) === $metadatum_id
+                    ) {
+                        return (string) $metadatum->get_name();
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            return sprintf(__('ID %d', 'tainacan-openalex'), $metadatum_id);
+        }
+
+        return sprintf(__('ID %d', 'tainacan-openalex'), $metadatum_id);
+    }
+
+    private function sanitize_openalex_mapping_value($raw_value, string $current_option_id): int {
+        static $reported_duplicate_values = [];
+
+        $value = absint($raw_value);
+
+        if ($value <= 0) {
+            return 0;
+        }
+
+        $submitted_values = $this->get_submitted_openalex_mapping_values();
+        $submitted_values[$current_option_id] = $value;
+
+        $duplicated_option_ids = [];
+
+        foreach ($submitted_values as $option_id => $option_value) {
+            if ($option_value > 0 && $option_value === $value) {
+                $duplicated_option_ids[] = $option_id;
+            }
+        }
+
+        if (count($duplicated_option_ids) <= 1) {
+            return $value;
+        }
+
+        if (!isset($reported_duplicate_values[$value])) {
+            $mapping_options = $this->get_openalex_mapping_options();
+
+            $duplicated_labels = [];
+
+            foreach ($duplicated_option_ids as $option_id) {
+                $duplicated_labels[] = $mapping_options[$option_id] ?? $option_id;
+            }
+
+            $metadatum_name = $this->get_tainacan_metadatum_name_by_id($value);
+
+            add_settings_error(
+                'tainacan_settings',
+                'openalex_duplicate_mapping_' . $value,
+                sprintf(
+                    __('O metadado “%1$s” já está sendo usado nos campos %2$s. Cada metadado do Tainacan só pode ser associado a um campo da OpenAlex. Escolha outro metadado para continuar.', 'tainacan-openalex'),
+                    $metadatum_name,
+                    implode(', ', $duplicated_labels)
+                ),
+                'error'
+            );
+
+            $reported_duplicate_values[$value] = true;
+        }
+
+        return absint(get_option('tainacan_option_' . $current_option_id, 0));
+    }
+
+    public function sanitize_openalex_map_title($value): int {
+        return $this->sanitize_openalex_mapping_value($value, 'openalex_map_title');
+    }
+
+    public function sanitize_openalex_map_authors($value): int {
+        return $this->sanitize_openalex_mapping_value($value, 'openalex_map_authors');
+    }
+
+    public function sanitize_openalex_map_year($value): int {
+        return $this->sanitize_openalex_mapping_value($value, 'openalex_map_year');
+    }
+
+    public function sanitize_openalex_map_doi($value): int {
+        return $this->sanitize_openalex_mapping_value($value, 'openalex_map_doi');
+    }
+
+    public function sanitize_openalex_map_venue($value): int {
+        return $this->sanitize_openalex_mapping_value($value, 'openalex_map_venue');
+    }
+
+    public function sanitize_openalex_map_url($value): int {
+        return $this->sanitize_openalex_mapping_value($value, 'openalex_map_url');
+    }
+
+    public function sanitize_openalex_map_abnt($value): int {
+        return $this->sanitize_openalex_mapping_value($value, 'openalex_map_abnt');
+    }
+// fim issue 11
+
     public function openalex_settings_init() {
         // Seção nova na Settings Page do Tainacan
         add_settings_section(
             'openalex_biblio_settings_section',
-            __('OpenAlex Biblio', 'tainacan-openalex-biblio'),
+            __('OpenAlex Biblio', 'tainacan-openalex'),
             function () {
-                echo '<p class="settings-section-description">';
-                esc_html_e('Configure a coleção de referências e o mapeamento dos campos (OpenAlex → Metadados).', 'tainacan-openalex-biblio');
+                echo '<p class="help">';
+                esc_html_e('Configure a coleção de referências e o mapeamento dos campos (OpenAlex → Metadados).', 'tainacan-openalex');
                 echo '</p>';
             },
             'tainacan_settings'
@@ -120,117 +369,240 @@ class Tainacan_OpenAlex_Biblio_MVP {
         $settings = \Tainacan\Settings::get_instance();
         if (!method_exists($settings, 'create_tainacan_setting')) return;
 
-        // Coleção + API key
         $settings->create_tainacan_setting([
-            'id'          => 'openalex_references_collection_id',
-            'title'       => __('ID da Coleção de Referências', 'tainacan-openalex-biblio'),
-            'section'     => 'openalex_biblio_settings_section',
-            'type'        => 'integer',
-            'input_type'  => 'number',
-            'description' => __('Informe o ID da coleção do Tainacan onde ficam as referências bibliográficas.', 'tainacan-openalex-biblio'),
-            'default'     => ''
+            'id'               => 'openalex_references_collection_id',
+            'title'            => __('Coleção de Referências', 'tainacan-openalex'),
+            'section'          => 'openalex_biblio_settings_section',
+            'type'             => 'integer',
+            'input_type'       => 'select',
+            'input_inner_html' => $this->get_collections_select_options_html(),
+            'description'      => __('Selecione a coleção do Tainacan onde ficam as referências bibliográficas.', 'tainacan-openalex'),
+            'default'          => 0,
+            'sanitize_callback'=> 'absint'
         ]);
 
         $settings->create_tainacan_setting([
             'id'          => 'openalex_api_key',
-            'title'       => __('OpenAlex API Key (opcional)', 'tainacan-openalex-biblio'),
+            'title'       => __('OpenAlex API Key (opcional)', 'tainacan-openalex'),
             'section'     => 'openalex_biblio_settings_section',
             'type'        => 'string',
             'input_type'  => 'password',
-            'description' => __('Se você tiver API Key, informe aqui. Caso contrário, deixe vazio.', 'tainacan-openalex-biblio'),
+            'description' => __('Se você tiver API Key, informe aqui. Caso contrário, deixe vazio.', 'tainacan-openalex'),
             'default'     => ''
         ]);
 
         // Mapeamento (IDs de metadados)
-        $settings->create_tainacan_setting([
-            'id'          => 'openalex_map_title',
-            'title'       => __('Mapeamento: Title → Metadado (ID)', 'tainacan-openalex-biblio'),
-            'section'     => 'openalex_biblio_settings_section',
-            'type'        => 'integer',
-            'input_type'  => 'number',
-            'description' => __('ID do metadado da coleção que receberá o TÍTULO.', 'tainacan-openalex-biblio'),
-            'default'     => 0
-        ]);
+$settings->create_tainacan_setting([
+    'id'               => 'openalex_map_title',
+    'title'            => __('Mapeamento: Título → Metadado', 'tainacan-openalex'),
+    'section'          => 'openalex_biblio_settings_section',
+    'type'             => 'integer',
+    'input_type'       => 'select',
+    'input_inner_html' => $this->get_metadata_select_options_html([
+        'Tainacan\\Metadata_Types\\Core_Title',
+        'Tainacan\\Metadata_Types\\Text',
+    ]),
+    'description'      => __('Selecione o metadado da coleção que receberá o TÍTULO.', 'tainacan-openalex'),
+    'default'          => 0,
+    //issue 11
+    'sanitize_callback'=> [$this, 'sanitize_openalex_map_title']
+    //fim issue 11
+]);
 
-        $settings->create_tainacan_setting([
-            'id'          => 'openalex_map_authors',
-            'title'       => __('Mapeamento: Authors → Metadado (ID)', 'tainacan-openalex-biblio'),
-            'section'     => 'openalex_biblio_settings_section',
-            'type'        => 'integer',
-            'input_type'  => 'number',
-            'description' => __('ID do metadado que receberá os AUTORES.', 'tainacan-openalex-biblio'),
-            'default'     => 0
-        ]);
+$settings->create_tainacan_setting([
+    'id'               => 'openalex_map_authors',
+    'title'            => __('Mapeamento: Autores → Metadado', 'tainacan-openalex'),
+    'section'          => 'openalex_biblio_settings_section',
+    'type'             => 'integer',
+    'input_type'       => 'select',
+    'input_inner_html' => $this->get_metadata_select_options_html([
+        'Tainacan\\Metadata_Types\\Text',
+        'Tainacan\\Metadata_Types\\Textarea',
+        'Tainacan\\Metadata_Types\\Selectbox',
+    ]),
+    'description'      => __('Selecione o metadado da coleção que receberá os AUTORES.', 'tainacan-openalex'),
+    'default'          => 0,
+    //issue 11
+    'sanitize_callback'=> [$this, 'sanitize_openalex_map_authors']
+    //fim issue 11
+]);
 
-        $settings->create_tainacan_setting([
-            'id'          => 'openalex_map_year',
-            'title'       => __('Mapeamento: Year → Metadado (ID)', 'tainacan-openalex-biblio'),
-            'section'     => 'openalex_biblio_settings_section',
-            'type'        => 'integer',
-            'input_type'  => 'number',
-            'description' => __('ID do metadado que receberá o ANO.', 'tainacan-openalex-biblio'),
-            'default'     => 0
-        ]);
+$settings->create_tainacan_setting([
+    'id'               => 'openalex_map_year',
+    'title'            => __('Mapeamento: Ano → Metadado', 'tainacan-openalex'),
+    'section'          => 'openalex_biblio_settings_section',
+    'type'             => 'integer',
+    'input_type'       => 'select',
+    'input_inner_html' => $this->get_metadata_select_options_html([
+        'Tainacan\\Metadata_Types\\Text',
+        'Tainacan\\Metadata_Types\\Numeric',
+    ]),
+    'description'      => __('Selecione o metadado da coleção que receberá o ANO.', 'tainacan-openalex'),
+    'default'          => 0,
+    //issue 11
+    'sanitize_callback'=> [$this, 'sanitize_openalex_map_year']
+    //fim issue 11
+]);
 
-        $settings->create_tainacan_setting([
-            'id'          => 'openalex_map_doi',
-            'title'       => __('Mapeamento: DOI → Metadado (ID)', 'tainacan-openalex-biblio'),
-            'section'     => 'openalex_biblio_settings_section',
-            'type'        => 'integer',
-            'input_type'  => 'number',
-            'description' => __('ID do metadado que receberá o DOI.', 'tainacan-openalex-biblio'),
-            'default'     => 0
-        ]);
+$settings->create_tainacan_setting([
+    'id'               => 'openalex_map_doi',
+    'title'            => __('Mapeamento: DOI → Metadado', 'tainacan-openalex'),
+    'section'          => 'openalex_biblio_settings_section',
+    'type'             => 'integer',
+    'input_type'       => 'select',
+    'input_inner_html' => $this->get_metadata_select_options_html([
+        'Tainacan\\Metadata_Types\\Text',
+        'Tainacan\\Metadata_Types\\URL',
+    ]),
+    'description'      => __('Selecione o metadado da coleção que receberá o DOI.', 'tainacan-openalex'),
+    'default'          => 0,
+    // issue 11
+    'sanitize_callback'=> [$this, 'sanitize_openalex_map_doi']
+    // fim issue 11
+]);
 
-        $settings->create_tainacan_setting([
-            'id'          => 'openalex_map_venue',
-            'title'       => __('Mapeamento: Venue → Metadado (ID)', 'tainacan-openalex-biblio'),
-            'section'     => 'openalex_biblio_settings_section',
-            'type'        => 'integer',
-            'input_type'  => 'number',
-            'description' => __('ID do metadado que receberá o PERIÓDICO/VEÍCULO.', 'tainacan-openalex-biblio'),
-            'default'     => 0
-        ]);
+$settings->create_tainacan_setting([
+    'id'               => 'openalex_map_venue',
+    'title'            => __('Mapeamento: Periódico/Veículo → Metadado', 'tainacan-openalex'),
+    'section'          => 'openalex_biblio_settings_section',
+    'type'             => 'integer',
+    'input_type'       => 'select',
+    'input_inner_html' => $this->get_metadata_select_options_html([
+        'Tainacan\\Metadata_Types\\Text',
+        'Tainacan\\Metadata_Types\\Textarea',
+        'Tainacan\\Metadata_Types\\Selectbox',
+    ]),
+    'description'      => __('Selecione o metadado da coleção que receberá o PERIÓDICO/VEÍCULO.', 'tainacan-openalex'),
+    'default'          => 0,
+    // issue 11
+    'sanitize_callback'=> [$this, 'sanitize_openalex_map_venue']
+    //fim issue 11
+]);
 
-        $settings->create_tainacan_setting([
-            'id'          => 'openalex_map_url',
-            'title'       => __('Mapeamento: URL → Metadado (ID)', 'tainacan-openalex-biblio'),
-            'section'     => 'openalex_biblio_settings_section',
-            'type'        => 'integer',
-            'input_type'  => 'number',
-            'description' => __('ID do metadado que receberá a URL.', 'tainacan-openalex-biblio'),
-            'default'     => 0
-        ]);
+$settings->create_tainacan_setting([
+    'id'               => 'openalex_map_url',
+    'title'            => __('Mapeamento: URL → Metadado', 'tainacan-openalex'),
+    'section'          => 'openalex_biblio_settings_section',
+    'type'             => 'integer',
+    'input_type'       => 'select',
+    'input_inner_html' => $this->get_metadata_select_options_html([
+        'Tainacan\\Metadata_Types\\Text',
+        'Tainacan\\Metadata_Types\\URL',
+    ]),
+    'description'      => __('Selecione o metadado da coleção que receberá a URL.', 'tainacan-openalex'),
+    'default'          => 0,
+    // issue 11
+    'sanitize_callback'=> [$this, 'sanitize_openalex_map_url']
+    // fim issue 11
+]);
 
-        $settings->create_tainacan_setting([
-            'id'          => 'openalex_map_abnt',
-            'title'       => __('Mapeamento: Referência (ABNT) → Metadado (ID)', 'tainacan-openalex-biblio'),
-            'section'     => 'openalex_biblio_settings_section',
-            'type'        => 'integer',
-            'input_type'  => 'number',
-            'description' => __('ID do metadado que receberá a referência formatada.', 'tainacan-openalex-biblio'),
-            'default'     => 0
-        ]);
+$settings->create_tainacan_setting([
+    'id'               => 'openalex_map_abnt',
+    'title'            => __('Mapeamento: Referência (ABNT) → Metadado', 'tainacan-openalex'),
+    'section'          => 'openalex_biblio_settings_section',
+    'type'             => 'integer',
+    'input_type'       => 'select',
+    'input_inner_html' => $this->get_metadata_select_options_html([
+        'Tainacan\\Metadata_Types\\Text',
+        'Tainacan\\Metadata_Types\\Textarea',
+        'Tainacan\\Metadata_Types\\URL',
+    ]),
+    'description'      => __('Selecione o metadado da coleção que receberá a referência formatada.', 'tainacan-openalex'),
+    'default'          => 0,
+    // issue 11
+    'sanitize_callback'=> [$this, 'sanitize_openalex_map_abnt']
+    // fim issue 11
+]);
     }
 
     public function ajax_get_settings_mapping() {
-        $this->require_ajax_perms();
+        check_ajax_referer(self::NONCE_ACTION, 'nonce');
+        if (!current_user_can('edit_posts')) {
+            wp_send_json_error(['message' => 'Sem permissão.'], 403);
+        }
 
         $mapping = [
-            'title'   => (int) get_option('tainacan_option_openalex_map_title', 0),
-            'authors' => (int) get_option('tainacan_option_openalex_map_authors', 0),
-            'year'    => (int) get_option('tainacan_option_openalex_map_year', 0),
-            'doi'     => (int) get_option('tainacan_option_openalex_map_doi', 0),
-            'venue'   => (int) get_option('tainacan_option_openalex_map_venue', 0),
-            'url'     => (int) get_option('tainacan_option_openalex_map_url', 0),
-            'abnt'    => (int) get_option('tainacan_option_openalex_map_abnt', 0),
+            'title'   => $this->get_valid_mapping_metadatum_id('openalex_map_title', [
+                'Tainacan\\Metadata_Types\\Core_Title',
+                'Tainacan\\Metadata_Types\\Text',
+            ]),
+            'authors' => $this->get_valid_mapping_metadatum_id('openalex_map_authors', [
+                'Tainacan\\Metadata_Types\\Text',
+                'Tainacan\\Metadata_Types\\Textarea',
+                'Tainacan\\Metadata_Types\\Selectbox',
+            ]),
+            'year'    => $this->get_valid_mapping_metadatum_id('openalex_map_year', [
+                'Tainacan\\Metadata_Types\\Text',
+                'Tainacan\\Metadata_Types\\Numeric',
+            ]),
+            'doi'     => $this->get_valid_mapping_metadatum_id('openalex_map_doi', [
+                'Tainacan\\Metadata_Types\\Text',
+                'Tainacan\\Metadata_Types\\URL',
+            ]),
+            'venue'   => $this->get_valid_mapping_metadatum_id('openalex_map_venue', [
+                'Tainacan\\Metadata_Types\\Text',
+                'Tainacan\\Metadata_Types\\Textarea',
+                'Tainacan\\Metadata_Types\\Selectbox',
+            ]),
+            'url'     => $this->get_valid_mapping_metadatum_id('openalex_map_url', [
+                'Tainacan\\Metadata_Types\\Text',
+                'Tainacan\\Metadata_Types\\URL',
+            ]),
+            'abnt'    => $this->get_valid_mapping_metadatum_id('openalex_map_abnt', [
+                'Tainacan\\Metadata_Types\\Text',
+                'Tainacan\\Metadata_Types\\Textarea',
+                'Tainacan\\Metadata_Types\\URL',
+            ]),
         ];
-
+    
         wp_send_json_success(['mapping' => $mapping]);
     }
 
+    private function get_valid_mapping_metadatum_id(string $option_id, array $allowed_metadata_types): int {
+        $metadatum_id = (int) get_option('tainacan_option_' . $option_id, 0);
+    
+        if ($metadatum_id <= 0) {
+            return 0;
+        }
+    
+        $metadata_type = $this->get_metadatum_type_class($metadatum_id);
+    
+        if ($metadata_type === '') {
+            return 0;
+        }
+    
+        return in_array($metadata_type, $allowed_metadata_types, true)
+            ? $metadatum_id
+            : 0;
+    }
+    
+    private function get_metadatum_type_class(int $metadatum_id): string {
+        if ($metadatum_id <= 0) {
+            return '';
+        }
+    
+        if (!class_exists('\\Tainacan\\Entities\\Metadatum')) {
+            return '';
+        }
+    
+        try {
+            $metadatum = new \Tainacan\Entities\Metadatum($metadatum_id);
+        } catch (\Throwable $e) {
+            return '';
+        }
+    
+        if (!method_exists($metadatum, 'get_metadata_type')) {
+            return '';
+        }
+    
+        return (string) $metadatum->get_metadata_type();
+    }
+
     public function ajax_work_search() {
-        $this->require_ajax_perms();
+        check_ajax_referer(self::NONCE_ACTION, 'nonce');
+        if (!current_user_can('edit_posts')) {
+            wp_send_json_error(['message' => 'Sem permissão.'], 403);
+        }
 
         $q = isset($_POST['q']) ? sanitize_text_field(wp_unslash($_POST['q'])) : '';
         if (!$q) {
@@ -277,70 +649,125 @@ class Tainacan_OpenAlex_Biblio_MVP {
         ]);
     }
 
+    private function normalize_openalex_work_api_url(string $id): string {
+        $id = trim($id);
+
+        if ($id === '') {
+            return '';
+        }
+
+        if (preg_match('~https?://api\.openalex\.org/works/([^/?#]+)~i', $id, $m)) {
+            return 'https://api.openalex.org/works/' . strtoupper($m[1]);
+        }
+
+        if (preg_match('~^https?://openalex\.org/(W\d+)$~i', $id, $m)) {
+            return 'https://api.openalex.org/works/' . strtoupper($m[1]);
+        }
+
+        if (preg_match('~^(W\d+)$~i', $id, $m)) {
+            return 'https://api.openalex.org/works/' . strtoupper($m[1]);
+        }
+
+        return 'https://api.openalex.org/works/' . ltrim($id, '/');
+    }
+
+
+
     public function ajax_work_get() {
-        $this->require_ajax_perms();
+        check_ajax_referer(self::NONCE_ACTION, 'nonce');
+
+        if (!current_user_can('edit_posts')) {
+            wp_send_json_error(['message' => 'Sem permissão.'], 403);
+        }
 
         $id = isset($_POST['id']) ? esc_url_raw(wp_unslash($_POST['id'])) : '';
-        if (!$id) wp_send_json_error(['message' => 'ID vazio.'], 400);
+
+        if (!$id) {
+            wp_send_json_error(['message' => 'ID vazio.'], 400);
+        }
 
         $api_key = $this->get_opt_str('openalex_api_key');
 
-        $url = $id;
-        if (strpos($url, 'api.openalex.org/works/') === false) {
-            $url = 'https://api.openalex.org/works/' . ltrim($id, '/');
+        $url = $this->normalize_openalex_work_api_url($id);
+
+        if ($url === '') {
+            wp_send_json_error([
+                'message' => 'ID do work vazio ou inválido.',
+                'id'      => $id,
+            ], 400);
         }
 
         $args = [
-            'select' => 'id,title,publication_year,doi,authorships,primary_location',
+            'select' => $this->get_openalex_work_select_fields(),
         ];
-        if ($api_key !== '') $args['api_key'] = $api_key;
+
+        if ($api_key !== '') {
+            $args['api_key'] = $api_key;
+        }
 
         $url = add_query_arg($args, $url);
 
         $resp = wp_remote_get($url, [
             'timeout' => 15,
-            'headers' => ['Accept' => 'application/json'],
+            'headers' => [
+                'Accept' => 'application/json',
+            ],
         ]);
 
-        if (is_wp_error($resp)) wp_send_json_error(['message' => $resp->get_error_message()], 500);
+        if (is_wp_error($resp)) {
+            wp_send_json_error([
+                'message' => $resp->get_error_message(),
+            ], 500);
+        }
 
         $code = wp_remote_retrieve_response_code($resp);
         $body = wp_remote_retrieve_body($resp);
 
         if ($code < 200 || $code >= 300) {
-            wp_send_json_error(['message' => 'Erro no OpenAlex', 'status' => $code, 'body' => $body], 502);
+            wp_send_json_error([
+                'message'      => 'Erro ao obter detalhes do work no OpenAlex.',
+                'status'       => $code,
+                'openalex_url' => $url,
+                'id_original'  => $id,
+                'body'         => $body,
+            ], 502);
         }
 
         $w = json_decode($body, true);
 
-        $authors = [];
-        foreach (($w['authorships'] ?? []) as $a) {
-            $name = $a['author']['display_name'] ?? null;
-            if ($name) $authors[] = $name;
+        if (!is_array($w)) {
+            wp_send_json_error([
+                'message' => 'Resposta inválida do OpenAlex.',
+                'body'    => $body,
+            ], 502);
         }
 
-        $venue = $w['primary_location']['source']['display_name'] ?? null;
+        $out = $this->normalize_work_item($w);
 
-        $out = [
-            'id'      => $w['id'] ?? null,
-            'title'   => $w['title'] ?? null,
-            'year'    => $w['publication_year'] ?? null,
-            'doi'     => $w['doi'] ?? null,
-            'venue'   => $venue,
-            'authors' => implode('; ', $authors),
-            'url'     => $w['id'] ?? null,
-        ];
+        wp_send_json_success([
+            'work'  => $out,
+            'debug' => [
+                'openalex_url' => $url,
+                'raw_id'       => $w['id'] ?? null,
+                'raw_title'    => $w['title'] ?? null,
+                'raw_year'     => $w['publication_year'] ?? null,
+                'raw_doi'      => $w['doi'] ?? null,
+                'raw_venue_primary_location' => $w['primary_location']['source']['display_name'] ?? null,
+                'raw_locations_count'        => is_array($w['locations'] ?? null) ? count($w['locations']) : 0,
+                'normalized_work'            => $out,
+            ],
+        ]);
+    }
 
-        $out['abnt'] = $this->format_abnt_basic($out);
-
-        wp_send_json_success(['work' => $out]);
+    private function get_openalex_work_select_fields(): string {
+        return 'id,title,publication_year,doi,authorships,primary_location,locations';
     }
 
     private function search_works_by_text(string $query, string $api_key, string $mode = 'free'): array {
         $args = [
             'search'   => $query,
             'per-page' => 10,
-            'select'   => 'id,title,publication_year,doi',
+            'select'   => $this->get_openalex_work_select_fields(),
         ];
 
         if ($api_key !== '') {
@@ -381,7 +808,7 @@ class Tainacan_OpenAlex_Biblio_MVP {
 
         $url = 'https://api.openalex.org/works/' . rawurlencode('doi:' . $doi);
         $args = [
-            'select' => 'id,title,publication_year,doi',
+            'select' => $this->get_openalex_work_select_fields(),
         ];
         if ($api_key !== '') {
             $args['api_key'] = $api_key;
@@ -444,7 +871,7 @@ class Tainacan_OpenAlex_Biblio_MVP {
             'filter'   => 'authorships.author.id:' . $author_id,
             'per-page' => 10,
             'sort'     => 'publication_year:desc',
-            'select'   => 'id,title,publication_year,doi',
+            'select'   => $this->get_openalex_work_select_fields(),
         ];
         if ($api_key !== '') {
             $works_args['api_key'] = $api_key;
@@ -512,7 +939,7 @@ class Tainacan_OpenAlex_Biblio_MVP {
             'filter'   => 'primary_location.source.id:' . $source_id,
             'per-page' => 10,
             'sort'     => 'publication_year:desc',
-            'select'   => 'id,title,publication_year,doi',
+            'select'   => $this->get_openalex_work_select_fields(),
         ];
         if ($api_key !== '') {
             $works_args['api_key'] = $api_key;
@@ -596,12 +1023,32 @@ class Tainacan_OpenAlex_Biblio_MVP {
     }
 
     private function normalize_work_item(array $w): array {
-        return [
-            'id'    => $w['id'] ?? null,
-            'title' => $w['title'] ?? ($w['display_name'] ?? null),
-            'year'  => $w['publication_year'] ?? null,
-            'doi'   => $w['doi'] ?? null,
+        $authors = [];
+
+        foreach (($w['authorships'] ?? []) as $a) {
+            $name = $a['author']['display_name'] ?? null;
+
+            if ($name) {
+                $authors[] = $name;
+            }
+        }
+
+        $venue = $this->extract_openalex_venue($w);
+
+        $out = [
+            'id'           => $w['id'] ?? null,
+            'title'        => $w['title'] ?? ($w['display_name'] ?? ''),
+            'year'         => $w['publication_year'] ?? '',
+            'doi'          => $w['doi'] ?? '',
+            'venue'        => $venue,
+            'authors'      => implode('; ', $authors),
+            'authors_list' => array_values($authors),
+            'url'          => $w['id'] ?? '',
         ];
+
+        $out['abnt'] = $this->format_abnt_basic($out);
+
+        return $out;
     }
 
     private function extract_short_openalex_id(string $id): string {
@@ -611,6 +1058,34 @@ class Tainacan_OpenAlex_Biblio_MVP {
         $id = preg_replace('#^https?://openalex\.org/#i', '', $id);
         return strtoupper($id);
     }
+
+
+    private function extract_openalex_venue(array $w): string {
+        $candidates = [];
+
+        if (!empty($w['primary_location']['source']['display_name'])) {
+            $candidates[] = $w['primary_location']['source']['display_name'];
+        }
+
+        if (!empty($w['locations']) && is_array($w['locations'])) {
+            foreach ($w['locations'] as $location) {
+                if (!empty($location['source']['display_name'])) {
+                    $candidates[] = $location['source']['display_name'];
+                }
+            }
+        }
+
+        foreach ($candidates as $candidate) {
+            $candidate = trim((string) $candidate);
+
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        return '';
+    }
+
 
     private function format_abnt_basic(array $work): string {
         $authorsRaw = trim((string)($work['authors'] ?? ''));
@@ -647,18 +1122,16 @@ class Tainacan_OpenAlex_Biblio_MVP {
         return trim(preg_replace('/\s+/', ' ', implode(' ', $parts)));
     }
 
-    private function require_ajax_perms() {
-        check_ajax_referer(self::NONCE_ACTION, 'nonce');
-        if (!current_user_can('edit_posts')) {
-            wp_send_json_error(['message' => 'Sem permissão.'], 403);
-        }
-    }
-
     private function get_opt_str($id) {
         return (string) get_option('tainacan_option_' . $id, '');
     }
+
+    private function get_opt_int($id) {
+        return (int) get_option('tainacan_option_' . $id, 0);
+    }
+
 }
 
-new Tainacan_OpenAlex_Biblio_MVP();
+new Tainacan_OpenAlex_Biblio();
 
 } // namespace

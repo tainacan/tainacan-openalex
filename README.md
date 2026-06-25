@@ -1,4 +1,4 @@
-# Tainacan OpenAlex Bibliografia (Form Hook)
+# Tainacan OpenAlex Bibliografi
 
 Plugin para **WordPress + Tainacan** que permite pesquisar referências bibliográficas no **OpenAlex** e preencher automaticamente metadados do item aberto no formulário administrativo do Tainacan.
 
