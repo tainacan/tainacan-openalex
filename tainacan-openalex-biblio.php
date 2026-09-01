@@ -521,9 +521,7 @@ $settings->create_tainacan_setting([
 
     public function ajax_get_settings_mapping() {
         check_ajax_referer(self::NONCE_ACTION, 'nonce');
-        if (!current_user_can('edit_posts')) {
-            wp_send_json_error(['message' => 'Sem permissão.'], 403);
-        }
+        $this->ensure_openalex_collection_edit_permission();
 
         $mapping = [
             'title'   => $this->get_valid_mapping_metadatum_id('openalex_map_title', [
@@ -573,13 +571,6 @@ $settings->create_tainacan_setting([
      */
     public function ajax_resolve_metadata_values() {
         check_ajax_referer(self::NONCE_ACTION, 'nonce');
-
-        if (!current_user_can('edit_posts')) {
-            wp_send_json_error([
-                'code'    => 'forbidden',
-                'message' => __('Sem permissão para executar esta operação.', 'tainacan-openalex'),
-            ], 403);
-        }
 
         $item_id = isset($_POST['item_id'])
             ? absint(wp_unslash($_POST['item_id']))
@@ -1268,9 +1259,7 @@ $settings->create_tainacan_setting([
 
     public function ajax_work_search() {
         check_ajax_referer(self::NONCE_ACTION, 'nonce');
-        if (!current_user_can('edit_posts')) {
-            wp_send_json_error(['message' => 'Sem permissão.'], 403);
-        }
+        $this->ensure_openalex_collection_edit_permission();
 
         $q = isset($_POST['q']) ? sanitize_text_field(wp_unslash($_POST['q'])) : '';
         if (!$q) {
@@ -1343,10 +1332,7 @@ $settings->create_tainacan_setting([
 
     public function ajax_work_get() {
         check_ajax_referer(self::NONCE_ACTION, 'nonce');
-
-        if (!current_user_can('edit_posts')) {
-            wp_send_json_error(['message' => 'Sem permissão.'], 403);
-        }
+        $this->ensure_openalex_collection_edit_permission();
 
         $id = isset($_POST['id']) ? esc_url_raw(wp_unslash($_POST['id'])) : '';
 
@@ -1796,6 +1782,50 @@ $settings->create_tainacan_setting([
 
     private function get_opt_int($id) {
         return (int) get_option('tainacan_option_' . $id, 0);
+    }
+
+    private function get_openalex_references_collection_id(): int {
+        return $this->get_opt_int('openalex_references_collection_id');
+    }
+
+    private function user_can_edit_openalex_collection(): bool {
+        $collection_id = $this->get_openalex_references_collection_id();
+
+        if ($collection_id <= 0) {
+            return false;
+        }
+
+        if (class_exists('\\Tainacan\\Repositories\\Collections')) {
+            try {
+                $collection = \Tainacan\Repositories\Collections::get_instance()->fetch($collection_id);
+
+                if ($collection instanceof \Tainacan\Entities\Collection) {
+                    return (bool) $collection->user_can('edit_items');
+                }
+            } catch (\Throwable $e) {
+                // Fallback to the raw capability check below.
+            }
+        }
+
+        return current_user_can('tnc_col_' . $collection_id . '_edit_items');
+    }
+
+    private function ensure_openalex_collection_edit_permission(): void {
+        $collection_id = $this->get_openalex_references_collection_id();
+
+        if ($collection_id <= 0) {
+            wp_send_json_error([
+                'code'    => 'collection_not_configured',
+                'message' => __('A coleção de referências OpenAlex não está configurada.', 'tainacan-openalex'),
+            ], 400);
+        }
+
+        if (!$this->user_can_edit_openalex_collection()) {
+            wp_send_json_error([
+                'code'    => 'forbidden',
+                'message' => __('Sem permissão para editar itens nesta coleção.', 'tainacan-openalex'),
+            ], 403);
+        }
     }
 
 }
