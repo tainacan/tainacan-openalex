@@ -44,6 +44,7 @@ class Tainacan_OpenAlex_Biblio {
         add_action('wp_ajax_tainacan_openalex_work_search', [$this, 'ajax_work_search']);
         add_action('wp_ajax_tainacan_openalex_work_get',    [$this, 'ajax_work_get']);
         add_action('wp_ajax_tainacan_openalex_get_settings_mapping', [$this, 'ajax_get_settings_mapping']);
+        add_action('wp_ajax_tainacan_openalex_resolve_metadata_values', [$this, 'ajax_resolve_metadata_values']);
     }
 
     public function bootstrap() {
@@ -419,6 +420,7 @@ $settings->create_tainacan_setting([
         'Tainacan\\Metadata_Types\\Text',
         'Tainacan\\Metadata_Types\\Textarea',
         'Tainacan\\Metadata_Types\\Selectbox',
+        'Tainacan\\Metadata_Types\\Taxonomy',
     ]),
     'description'      => __('Selecione o metadado da coleção que receberá os AUTORES.', 'tainacan-openalex'),
     'default'          => 0,
@@ -436,6 +438,7 @@ $settings->create_tainacan_setting([
     'input_inner_html' => $this->get_metadata_select_options_html([
         'Tainacan\\Metadata_Types\\Text',
         'Tainacan\\Metadata_Types\\Numeric',
+        'Tainacan\\Metadata_Types\\Taxonomy',
     ]),
     'description'      => __('Selecione o metadado da coleção que receberá o ANO.', 'tainacan-openalex'),
     'default'          => 0,
@@ -471,6 +474,7 @@ $settings->create_tainacan_setting([
         'Tainacan\\Metadata_Types\\Text',
         'Tainacan\\Metadata_Types\\Textarea',
         'Tainacan\\Metadata_Types\\Selectbox',
+        'Tainacan\\Metadata_Types\\Taxonomy',
     ]),
     'description'      => __('Selecione o metadado da coleção que receberá o PERIÓDICO/VEÍCULO.', 'tainacan-openalex'),
     'default'          => 0,
@@ -517,9 +521,7 @@ $settings->create_tainacan_setting([
 
     public function ajax_get_settings_mapping() {
         check_ajax_referer(self::NONCE_ACTION, 'nonce');
-        if (!current_user_can('edit_posts')) {
-            wp_send_json_error(['message' => 'Sem permissão.'], 403);
-        }
+        $this->ensure_openalex_collection_edit_permission();
 
         $mapping = [
             'title'   => $this->get_valid_mapping_metadatum_id('openalex_map_title', [
@@ -530,10 +532,12 @@ $settings->create_tainacan_setting([
                 'Tainacan\\Metadata_Types\\Text',
                 'Tainacan\\Metadata_Types\\Textarea',
                 'Tainacan\\Metadata_Types\\Selectbox',
+                'Tainacan\\Metadata_Types\\Taxonomy',
             ]),
             'year'    => $this->get_valid_mapping_metadatum_id('openalex_map_year', [
                 'Tainacan\\Metadata_Types\\Text',
                 'Tainacan\\Metadata_Types\\Numeric',
+                'Tainacan\\Metadata_Types\\Taxonomy',
             ]),
             'doi'     => $this->get_valid_mapping_metadatum_id('openalex_map_doi', [
                 'Tainacan\\Metadata_Types\\Text',
@@ -543,6 +547,7 @@ $settings->create_tainacan_setting([
                 'Tainacan\\Metadata_Types\\Text',
                 'Tainacan\\Metadata_Types\\Textarea',
                 'Tainacan\\Metadata_Types\\Selectbox',
+                'Tainacan\\Metadata_Types\\Taxonomy',
             ]),
             'url'     => $this->get_valid_mapping_metadatum_id('openalex_map_url', [
                 'Tainacan\\Metadata_Types\\Text',
@@ -556,6 +561,660 @@ $settings->create_tainacan_setting([
         ];
     
         wp_send_json_success(['mapping' => $mapping]);
+    }
+
+    /**
+     * Resolve valores recebidos da OpenAlex antes de persistir o metadado.
+     *
+     * Para metadados comuns, apenas devolve os valores normalizados.
+     * Para Taxonomia, devolve IDs de termos existentes ou criados.
+     */
+    public function ajax_resolve_metadata_values() {
+        check_ajax_referer(self::NONCE_ACTION, 'nonce');
+
+        $item_id = isset($_POST['item_id'])
+            ? absint(wp_unslash($_POST['item_id']))
+            : 0;
+
+        $metadatum_id = isset($_POST['metadatum_id'])
+            ? absint(wp_unslash($_POST['metadatum_id']))
+            : 0;
+
+        $raw_values = isset($_POST['values'])
+            ? wp_unslash($_POST['values'])
+            : [];
+
+        if ($item_id <= 0) {
+            wp_send_json_error([
+                'code'    => 'invalid_item_id',
+                'message' => __('O item atual não foi identificado.', 'tainacan-openalex'),
+            ], 400);
+        }
+
+        if ($metadatum_id <= 0) {
+            wp_send_json_error([
+                'code'    => 'invalid_metadatum_id',
+                'message' => __('O ID do metadado é inválido.', 'tainacan-openalex'),
+            ], 400);
+        }
+
+        $values = $this->normalize_openalex_metadata_values($raw_values);
+
+        if (empty($values)) {
+            wp_send_json_error([
+                'code'    => 'empty_values',
+                'message' => __('Nenhum valor válido foi recebido.', 'tainacan-openalex'),
+            ], 400);
+        }
+
+        if (!$this->is_configured_openalex_metadatum($metadatum_id)) {
+            wp_send_json_error([
+                'code'    => 'metadatum_not_mapped',
+                'message' => __('O metadado informado não está configurado no mapeamento da OpenAlex.', 'tainacan-openalex'),
+            ], 400);
+        }
+
+        if (
+            !class_exists('\\Tainacan\\Repositories\\Items') ||
+            !class_exists('\\Tainacan\\Repositories\\Metadata')
+        ) {
+            wp_send_json_error([
+                'code'    => 'tainacan_unavailable',
+                'message' => __('Os repositórios do Tainacan não estão disponíveis.', 'tainacan-openalex'),
+            ], 500);
+        }
+
+        try {
+            $items_repository = \Tainacan\Repositories\Items::get_instance();
+            $metadata_repository = \Tainacan\Repositories\Metadata::get_instance();
+
+            $item = $items_repository->fetch($item_id);
+            $metadatum = $metadata_repository->fetch($metadatum_id);
+        } catch (\Throwable $e) {
+            $this->debug_openalex_resolution_error('Falha ao carregar item ou metadado.', $e);
+
+            wp_send_json_error([
+                'code'    => 'tainacan_repository_error',
+                'message' => __('Não foi possível carregar o item ou o metadado.', 'tainacan-openalex'),
+            ], 500);
+        }
+
+        if (!$item instanceof \Tainacan\Entities\Item) {
+            wp_send_json_error([
+                'code'    => 'item_not_found',
+                'message' => __('O item informado não existe.', 'tainacan-openalex'),
+            ], 404);
+        }
+
+        if (!$item->can_edit()) {
+            wp_send_json_error([
+                'code'    => 'item_edit_forbidden',
+                'message' => __('Você não possui permissão para editar este item.', 'tainacan-openalex'),
+            ], 403);
+        }
+
+        if (!$metadatum instanceof \Tainacan\Entities\Metadatum) {
+            wp_send_json_error([
+                'code'    => 'metadatum_not_found',
+                'message' => __('O metadado informado não existe.', 'tainacan-openalex'),
+            ], 404);
+        }
+
+        if (!$metadatum->can_read()) {
+            wp_send_json_error([
+                'code'    => 'metadatum_read_forbidden',
+                'message' => __('Você não possui permissão para utilizar este metadado.', 'tainacan-openalex'),
+            ], 403);
+        }
+
+        $metadata_type = (string) $metadatum->get_metadata_type();
+
+        if ($metadata_type !== 'Tainacan\\Metadata_Types\\Taxonomy') {
+            wp_send_json_success([
+                'success'       => true,
+                'is_taxonomy'   => false,
+                'metadatum_id'  => $metadatum_id,
+                'is_multiple'   => $metadatum->is_multiple(),
+                'values'        => $values,
+                'warnings'      => [],
+            ]);
+        }
+
+        if (
+            !class_exists('\\Tainacan\\Repositories\\Taxonomies') ||
+            !class_exists('\\Tainacan\\Repositories\\Terms') ||
+            !class_exists('\\Tainacan\\Entities\\Term')
+        ) {
+            wp_send_json_error([
+                'code'    => 'taxonomy_support_unavailable',
+                'message' => __('O suporte a taxonomias do Tainacan não está disponível.', 'tainacan-openalex'),
+            ], 500);
+        }
+
+        $options = $metadatum->get_metadata_type_options();
+
+        if (!is_array($options)) {
+            wp_send_json_error([
+                'code'    => 'invalid_taxonomy_options',
+                'message' => __('As opções do metadado de Taxonomia estão em formato inesperado.', 'tainacan-openalex'),
+            ], 500);
+        }
+
+        $taxonomy_id = isset($options['taxonomy_id'])
+            ? absint($options['taxonomy_id'])
+            : 0;
+
+        if ($taxonomy_id <= 0) {
+            wp_send_json_error([
+                'code'    => 'taxonomy_id_missing',
+                'message' => __('O metadado de Taxonomia não possui uma taxonomia associada.', 'tainacan-openalex'),
+            ], 500);
+        }
+
+        if (!array_key_exists('allow_new_terms', $options)) {
+            wp_send_json_error([
+                'code'    => 'allow_new_terms_missing',
+                'message' => __('A opção allow_new_terms não foi encontrada no metadado de Taxonomia.', 'tainacan-openalex'),
+            ], 500);
+        }
+
+        $allow_new_terms_option = sanitize_key((string) $options['allow_new_terms']);
+
+        if (!in_array($allow_new_terms_option, ['yes', 'no'], true)) {
+            wp_send_json_error([
+                'code'    => 'allow_new_terms_invalid',
+                'message' => __('A opção allow_new_terms possui um valor inválido.', 'tainacan-openalex'),
+            ], 500);
+        }
+
+        $allow_new_terms = $allow_new_terms_option === 'yes';
+
+        try {
+            $taxonomies_repository = \Tainacan\Repositories\Taxonomies::get_instance();
+            $terms_repository = \Tainacan\Repositories\Terms::get_instance();
+            $taxonomy = $taxonomies_repository->fetch($taxonomy_id);
+        } catch (\Throwable $e) {
+            $this->debug_openalex_resolution_error('Falha ao carregar taxonomia.', $e);
+
+            wp_send_json_error([
+                'code'    => 'taxonomy_repository_error',
+                'message' => __('Não foi possível carregar a taxonomia associada.', 'tainacan-openalex'),
+            ], 500);
+        }
+
+        if (!$taxonomy instanceof \Tainacan\Entities\Taxonomy) {
+            wp_send_json_error([
+                'code'    => 'taxonomy_not_found',
+                'message' => __('A taxonomia associada ao metadado não existe.', 'tainacan-openalex'),
+            ], 404);
+        }
+
+        $taxonomy_db_identifier = (string) $taxonomy->get_db_identifier();
+
+        if ($taxonomy_db_identifier === '' || !taxonomy_exists($taxonomy_db_identifier)) {
+            wp_send_json_error([
+                'code'    => 'taxonomy_not_registered',
+                'message' => __('A taxonomia associada não está registrada no WordPress.', 'tainacan-openalex'),
+            ], 500);
+        }
+
+        $taxonomy_name = sanitize_text_field((string) $taxonomy->get_name());
+        $taxonomy_allows_insert = (string) $taxonomy->get_allow_insert() === 'yes';
+        $can_edit_taxonomy = $taxonomy->can_edit();
+
+        // Mesma regra usada pelo endpoint nativo de termos do Tainacan:
+        // editar a taxonomia OU editar o item quando metadado e taxonomia permitem inserção.
+        $can_create_via_item = $item->can_edit() && $allow_new_terms && $taxonomy_allows_insert;
+        $user_can_create_terms = $can_edit_taxonomy || $can_create_via_item;
+        $can_create_terms = $allow_new_terms && $taxonomy_allows_insert && $user_can_create_terms;
+
+        $term_ids = [];
+        $resolved_terms = [];
+        $warnings = [];
+
+        foreach ($values as $input_value) {
+            try {
+                $matches = $this->find_exact_taxonomy_terms(
+                    $terms_repository,
+                    $taxonomy,
+                    $taxonomy_id,
+                    $input_value
+                );
+            } catch (\Throwable $e) {
+                $this->debug_openalex_resolution_error('Falha ao procurar termo.', $e);
+
+                $warnings[] = $this->make_taxonomy_warning(
+                    $input_value,
+                    'term_lookup_failed',
+                    sprintf(
+                        __('Não foi possível procurar o termo “%1$s” na taxonomia “%2$s”.', 'tainacan-openalex'),
+                        $input_value,
+                        $taxonomy_name
+                    ),
+                    $taxonomy_id,
+                    $taxonomy_name
+                );
+                continue;
+            }
+
+            if (count($matches) > 1) {
+                $candidates = [];
+
+                foreach ($matches as $match) {
+                    $candidates[] = [
+                        'term_id'   => absint($match->get_id()),
+                        'term_name' => sanitize_text_field((string) $match->get_name()),
+                        'parent_id' => absint($match->get_parent()),
+                    ];
+                }
+
+                $warning = $this->make_taxonomy_warning(
+                    $input_value,
+                    'ambiguous_term_name',
+                    sprintf(
+                        __('Existem vários termos chamados “%1$s” na taxonomia “%2$s”. Nenhum deles foi selecionado automaticamente.', 'tainacan-openalex'),
+                        $input_value,
+                        $taxonomy_name
+                    ),
+                    $taxonomy_id,
+                    $taxonomy_name
+                );
+                $warning['candidates'] = $candidates;
+                $warnings[] = $warning;
+                continue;
+            }
+
+            if (count($matches) === 1) {
+                $existing_term = $matches[0];
+                $existing_term_id = absint($existing_term->get_id());
+
+                if ($existing_term_id > 0 && !in_array($existing_term_id, $term_ids, true)) {
+                    $term_ids[] = $existing_term_id;
+                    $resolved_terms[] = [
+                        'input_value' => $input_value,
+                        'term_id'     => $existing_term_id,
+                        'term_name'   => sanitize_text_field((string) $existing_term->get_name()),
+                        'created'     => false,
+                    ];
+                }
+                continue;
+            }
+
+            if (!$allow_new_terms) {
+                $warnings[] = $this->make_taxonomy_warning(
+                    $input_value,
+                    'term_not_found_closed_vocabulary',
+                    sprintf(
+                        __('O termo “%1$s” não existe na taxonomia “%2$s” e novos termos não são permitidos.', 'tainacan-openalex'),
+                        $input_value,
+                        $taxonomy_name
+                    ),
+                    $taxonomy_id,
+                    $taxonomy_name
+                );
+                continue;
+            }
+
+            if (!$taxonomy_allows_insert) {
+                $warnings[] = $this->make_taxonomy_warning(
+                    $input_value,
+                    'taxonomy_disallows_term_creation',
+                    sprintf(
+                        __('O termo “%1$s” não existe e a taxonomia “%2$s” não permite a criação de termos.', 'tainacan-openalex'),
+                        $input_value,
+                        $taxonomy_name
+                    ),
+                    $taxonomy_id,
+                    $taxonomy_name
+                );
+                continue;
+            }
+
+            if (!$user_can_create_terms) {
+                $warnings[] = $this->make_taxonomy_warning(
+                    $input_value,
+                    'term_creation_forbidden',
+                    sprintf(
+                        __('O termo “%1$s” não existe e você não possui permissão para criá-lo na taxonomia “%2$s”.', 'tainacan-openalex'),
+                        $input_value,
+                        $taxonomy_name
+                    ),
+                    $taxonomy_id,
+                    $taxonomy_name
+                );
+                continue;
+            }
+
+            if (!$can_create_terms) {
+                $warnings[] = $this->make_taxonomy_warning(
+                    $input_value,
+                    'term_creation_not_available',
+                    sprintf(
+                        __('O termo “%1$s” não pôde ser criado na taxonomia “%2$s”.', 'tainacan-openalex'),
+                        $input_value,
+                        $taxonomy_name
+                    ),
+                    $taxonomy_id,
+                    $taxonomy_name
+                );
+                continue;
+            }
+
+            // Segunda consulta reduz a janela de concorrência antes da inserção.
+            $matches_before_insert = $this->find_exact_taxonomy_terms(
+                $terms_repository,
+                $taxonomy,
+                $taxonomy_id,
+                $input_value
+            );
+
+            if (count($matches_before_insert) === 1) {
+                $term_created_elsewhere = $matches_before_insert[0];
+                $term_created_elsewhere_id = absint($term_created_elsewhere->get_id());
+
+                if ($term_created_elsewhere_id > 0 && !in_array($term_created_elsewhere_id, $term_ids, true)) {
+                    $term_ids[] = $term_created_elsewhere_id;
+                    $resolved_terms[] = [
+                        'input_value' => $input_value,
+                        'term_id'     => $term_created_elsewhere_id,
+                        'term_name'   => sanitize_text_field((string) $term_created_elsewhere->get_name()),
+                        'created'     => false,
+                    ];
+                }
+                continue;
+            }
+
+            $new_term = new \Tainacan\Entities\Term();
+            $new_term->set_name($input_value);
+            $new_term->set_taxonomy($taxonomy_db_identifier);
+            $new_term->set_parent(0);
+            $new_term->set_description('');
+            $new_term->set_user(get_current_user_id());
+
+            if (!$new_term->validate()) {
+                $warnings[] = $this->make_taxonomy_warning(
+                    $input_value,
+                    'term_validation_failed',
+                    sprintf(
+                        __('O valor “%1$s” não pôde ser usado como nome de termo na taxonomia “%2$s”.', 'tainacan-openalex'),
+                        $input_value,
+                        $taxonomy_name
+                    ),
+                    $taxonomy_id,
+                    $taxonomy_name
+                );
+                continue;
+            }
+
+            try {
+                $inserted_term = $terms_repository->insert($new_term);
+            } catch (\Throwable $e) {
+                // Pode ser uma criação concorrente. Procura novamente antes de falhar.
+                try {
+                    $matches_after_failure = $this->find_exact_taxonomy_terms(
+                        $terms_repository,
+                        $taxonomy,
+                        $taxonomy_id,
+                        $input_value
+                    );
+                } catch (\Throwable $lookup_error) {
+                    $matches_after_failure = [];
+                    $this->debug_openalex_resolution_error('Falha após erro de criação de termo.', $lookup_error);
+                }
+
+                if (count($matches_after_failure) === 1) {
+                    $concurrent_term = $matches_after_failure[0];
+                    $concurrent_term_id = absint($concurrent_term->get_id());
+
+                    if ($concurrent_term_id > 0 && !in_array($concurrent_term_id, $term_ids, true)) {
+                        $term_ids[] = $concurrent_term_id;
+                        $resolved_terms[] = [
+                            'input_value' => $input_value,
+                            'term_id'     => $concurrent_term_id,
+                            'term_name'   => sanitize_text_field((string) $concurrent_term->get_name()),
+                            'created'     => false,
+                        ];
+                    }
+                    continue;
+                }
+
+                $this->debug_openalex_resolution_error('Falha ao criar termo.', $e);
+
+                $warnings[] = $this->make_taxonomy_warning(
+                    $input_value,
+                    'term_creation_failed',
+                    sprintf(
+                        __('Não foi possível criar o termo “%1$s” na taxonomia “%2$s”.', 'tainacan-openalex'),
+                        $input_value,
+                        $taxonomy_name
+                    ),
+                    $taxonomy_id,
+                    $taxonomy_name
+                );
+                continue;
+            }
+
+            if (!$inserted_term instanceof \Tainacan\Entities\Term || absint($inserted_term->get_id()) <= 0) {
+                $warnings[] = $this->make_taxonomy_warning(
+                    $input_value,
+                    'invalid_created_term',
+                    sprintf(
+                        __('A criação do termo “%1$s” na taxonomia “%2$s” não retornou um ID válido.', 'tainacan-openalex'),
+                        $input_value,
+                        $taxonomy_name
+                    ),
+                    $taxonomy_id,
+                    $taxonomy_name
+                );
+                continue;
+            }
+
+            $inserted_term_id = absint($inserted_term->get_id());
+
+            if (!in_array($inserted_term_id, $term_ids, true)) {
+                $term_ids[] = $inserted_term_id;
+                $resolved_terms[] = [
+                    'input_value' => $input_value,
+                    'term_id'     => $inserted_term_id,
+                    'term_name'   => sanitize_text_field((string) $inserted_term->get_name()),
+                    'created'     => true,
+                ];
+            }
+        }
+
+        if (!$metadatum->is_multiple() && count($term_ids) > 1) {
+            $ignored_terms = array_slice($resolved_terms, 1);
+            $term_ids = array_slice($term_ids, 0, 1);
+            $resolved_terms = array_slice($resolved_terms, 0, 1);
+
+            $warning = $this->make_taxonomy_warning(
+                '',
+                'metadatum_not_multiple',
+                sprintf(
+                    __('O metadado “%1$s” aceita apenas um valor. Somente o primeiro termo resolvido foi utilizado.', 'tainacan-openalex'),
+                    sanitize_text_field((string) $metadatum->get_name())
+                ),
+                $taxonomy_id,
+                $taxonomy_name
+            );
+            $warning['ignored_terms'] = $ignored_terms;
+            $warnings[] = $warning;
+        }
+
+        wp_send_json_success([
+            'success'                => true,
+            'is_taxonomy'            => true,
+            'metadatum_id'           => $metadatum_id,
+            'metadatum_name'         => sanitize_text_field((string) $metadatum->get_name()),
+            'is_multiple'            => $metadatum->is_multiple(),
+            'taxonomy_id'            => $taxonomy_id,
+            'taxonomy_name'          => $taxonomy_name,
+            'allow_new_terms'        => $allow_new_terms,
+            'taxonomy_allows_insert' => $taxonomy_allows_insert,
+            'can_create_terms'       => $can_create_terms,
+            'term_ids'               => array_values(array_map('absint', $term_ids)),
+            'terms'                  => array_values($resolved_terms),
+            'warnings'               => array_values($warnings),
+        ]);
+    }
+
+    /**
+     * Normaliza, remove vazios e elimina duplicatas textuais preservando a ordem.
+     */
+    private function normalize_openalex_metadata_values($raw_values): array {
+        if (is_string($raw_values)) {
+            $trimmed = trim($raw_values);
+            $decoded = null;
+
+            if ($trimmed !== '' && in_array($trimmed[0], ['[', '{'], true)) {
+                $decoded = json_decode($trimmed, true);
+            }
+
+            $raw_values = is_array($decoded) ? $decoded : [$raw_values];
+        } elseif (!is_array($raw_values)) {
+            $raw_values = [$raw_values];
+        }
+
+        $normalized = [];
+        $seen = [];
+
+        foreach ($raw_values as $raw_value) {
+            if (is_array($raw_value) || is_object($raw_value)) {
+                continue;
+            }
+
+            $value = sanitize_text_field((string) $raw_value);
+            $value = preg_replace('/\\s+/u', ' ', trim($value));
+
+            if ($value === '') {
+                continue;
+            }
+
+            $comparison_key = $this->normalize_openalex_term_key($value);
+
+            if ($comparison_key === '' || isset($seen[$comparison_key])) {
+                continue;
+            }
+
+            $seen[$comparison_key] = true;
+            $normalized[] = $value;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Chave usada somente para comparação exata normalizada e deduplicação.
+     */
+    private function normalize_openalex_term_key(string $value): string {
+        $value = preg_replace('/\\s+/u', ' ', trim(wp_specialchars_decode($value)));
+
+        if (function_exists('mb_strtolower')) {
+            return mb_strtolower($value, 'UTF-8');
+        }
+
+        return strtolower($value);
+    }
+
+    /**
+     * Procura todos os termos com nome exato normalizado para detectar ambiguidades.
+     * term_exists() é usado com o ID da taxonomia, nunca com o ID do metadado.
+     *
+     * @return array<int, \\Tainacan\\Entities\\Term>
+     */
+    private function find_exact_taxonomy_terms(
+        $terms_repository,
+        $taxonomy,
+        int $taxonomy_id,
+        string $input_value
+    ): array {
+        $first_match = $terms_repository->term_exists(
+            $input_value,
+            $taxonomy_id,
+            null,
+            true
+        );
+
+        if (!$first_match instanceof \WP_Term) {
+            return [];
+        }
+
+        $fetched_terms = $terms_repository->fetch([
+            'name'       => $input_value,
+            'hide_empty' => false,
+            'number'     => 0,
+        ], $taxonomy);
+
+        $expected_key = $this->normalize_openalex_term_key($input_value);
+        $matches = [];
+        $seen_ids = [];
+
+        if (is_array($fetched_terms)) {
+            foreach ($fetched_terms as $term) {
+                if (!$term instanceof \Tainacan\Entities\Term) {
+                    continue;
+                }
+
+                $term_id = absint($term->get_id());
+                $term_key = $this->normalize_openalex_term_key((string) $term->get_name());
+
+                if ($term_id > 0 && $term_key === $expected_key && !isset($seen_ids[$term_id])) {
+                    $seen_ids[$term_id] = true;
+                    $matches[] = $term;
+                }
+            }
+        }
+
+        // Compatibilidade defensiva caso a versão retorne apenas o resultado de term_exists().
+        if (empty($matches)) {
+            $fallback_term = new \Tainacan\Entities\Term($first_match);
+            $fallback_id = absint($fallback_term->get_id());
+
+            if ($fallback_id > 0) {
+                $matches[] = $fallback_term;
+            }
+        }
+
+        return $matches;
+    }
+
+    private function make_taxonomy_warning(
+        string $input_value,
+        string $code,
+        string $message,
+        int $taxonomy_id,
+        string $taxonomy_name
+    ): array {
+        return [
+            'input_value'  => $input_value,
+            'code'         => sanitize_key($code),
+            'message'      => sanitize_text_field($message),
+            'taxonomy_id'  => $taxonomy_id,
+            'taxonomy_name'=> $taxonomy_name,
+        ];
+    }
+
+    /**
+     * Impede que a action AJAX seja usada para um metadado arbitrário não mapeado.
+     */
+    private function is_configured_openalex_metadatum(int $metadatum_id): bool {
+        foreach (array_keys($this->get_openalex_mapping_options()) as $option_id) {
+            if (absint(get_option('tainacan_option_' . $option_id, 0)) === $metadatum_id) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function debug_openalex_resolution_error(string $message, \Throwable $error): void {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log(sprintf(
+                '[Tainacan OpenAlex] %s %s',
+                $message,
+                $error->getMessage()
+            ));
+        }
     }
 
     private function get_valid_mapping_metadatum_id(string $option_id, array $allowed_metadata_types): int {
@@ -600,9 +1259,7 @@ $settings->create_tainacan_setting([
 
     public function ajax_work_search() {
         check_ajax_referer(self::NONCE_ACTION, 'nonce');
-        if (!current_user_can('edit_posts')) {
-            wp_send_json_error(['message' => 'Sem permissão.'], 403);
-        }
+        $this->ensure_openalex_collection_edit_permission();
 
         $q = isset($_POST['q']) ? sanitize_text_field(wp_unslash($_POST['q'])) : '';
         if (!$q) {
@@ -675,10 +1332,7 @@ $settings->create_tainacan_setting([
 
     public function ajax_work_get() {
         check_ajax_referer(self::NONCE_ACTION, 'nonce');
-
-        if (!current_user_can('edit_posts')) {
-            wp_send_json_error(['message' => 'Sem permissão.'], 403);
-        }
+        $this->ensure_openalex_collection_edit_permission();
 
         $id = isset($_POST['id']) ? esc_url_raw(wp_unslash($_POST['id'])) : '';
 
@@ -1128,6 +1782,50 @@ $settings->create_tainacan_setting([
 
     private function get_opt_int($id) {
         return (int) get_option('tainacan_option_' . $id, 0);
+    }
+
+    private function get_openalex_references_collection_id(): int {
+        return $this->get_opt_int('openalex_references_collection_id');
+    }
+
+    private function user_can_edit_openalex_collection(): bool {
+        $collection_id = $this->get_openalex_references_collection_id();
+
+        if ($collection_id <= 0) {
+            return false;
+        }
+
+        if (class_exists('\\Tainacan\\Repositories\\Collections')) {
+            try {
+                $collection = \Tainacan\Repositories\Collections::get_instance()->fetch($collection_id);
+
+                if ($collection instanceof \Tainacan\Entities\Collection) {
+                    return (bool) $collection->user_can('edit_items');
+                }
+            } catch (\Throwable $e) {
+                // Fallback to the raw capability check below.
+            }
+        }
+
+        return current_user_can('tnc_col_' . $collection_id . '_edit_items');
+    }
+
+    private function ensure_openalex_collection_edit_permission(): void {
+        $collection_id = $this->get_openalex_references_collection_id();
+
+        if ($collection_id <= 0) {
+            wp_send_json_error([
+                'code'    => 'collection_not_configured',
+                'message' => __('A coleção de referências OpenAlex não está configurada.', 'tainacan-openalex'),
+            ], 400);
+        }
+
+        if (!$this->user_can_edit_openalex_collection()) {
+            wp_send_json_error([
+                'code'    => 'forbidden',
+                'message' => __('Sem permissão para editar itens nesta coleção.', 'tainacan-openalex'),
+            ], 403);
+        }
     }
 
 }
