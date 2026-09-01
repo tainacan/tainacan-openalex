@@ -83,13 +83,16 @@
   // =========================
   // Status / utils
   // =========================
-  function setStatus(html, isError) {
+  function setStatus(html, isError, requestedTone) {
     const $st = $('#openalex-biblio-status');
     if (!html) {
       $st.empty();
       return;
     }
-    const tone = isError ? 'is-danger' : 'is-primary';
+    const allowedTones = ['is-primary', 'is-warning', 'is-danger', 'is-success'];
+    const tone = allowedTones.includes(requestedTone)
+      ? requestedTone
+      : (isError ? 'is-danger' : 'is-primary');
     $st.html(`<div class="notification ${tone} is-light is-size-7 openalex-biblio-status-message openalex-biblio-resolved-info">${html}</div>`);
   }
 
@@ -129,6 +132,114 @@ function getCandidateDisplayValue(candidates, field) {
 
   function getFailedFieldStatus() {
     return { label: 'Falhou', className: 'is-danger' };
+  }
+
+  function getExistingTermFieldStatus(count) {
+    return {
+      label: count === 1 ? 'Termo existente' : 'Termos existentes',
+      className: 'is-success'
+    };
+  }
+
+  function getCreatedTermFieldStatus(count) {
+    return {
+      label: count === 1 ? 'Termo criado' : 'Termos criados',
+      className: 'is-success'
+    };
+  }
+
+  function getPartialFieldStatus() {
+    return { label: 'Parcial', className: 'is-warning' };
+  }
+
+  function getNotFoundFieldStatus() {
+    return { label: 'Não encontrado', className: 'is-warning' };
+  }
+
+  function getForbiddenFieldStatus() {
+    return { label: 'Sem permissão', className: 'is-danger' };
+  }
+
+  function clearPreviewFieldMessages(fieldKey) {
+    const $field = $('.openalex-biblio-preview-card .openalex-biblio-result-field[data-field="' + fieldKey + '"]');
+    $field.find('.openalex-biblio-field-resolution-messages').remove();
+  }
+
+  function appendPreviewFieldMessage(fieldKey, message, tone) {
+    const $field = $('.openalex-biblio-preview-card .openalex-biblio-result-field[data-field="' + fieldKey + '"]');
+
+    if (!$field.length || !message) {
+      return;
+    }
+
+    let $messages = $field.find('.openalex-biblio-field-resolution-messages');
+
+    if (!$messages.length) {
+      $messages = $('<div class="openalex-biblio-field-resolution-messages"></div>');
+      $field.append($messages);
+    }
+
+    const safeTone = ['is-warning', 'is-danger', 'is-success', 'is-primary'].includes(tone)
+      ? tone
+      : 'is-warning';
+
+    $messages.append(
+      '<div class="notification ' + safeTone + ' is-light is-size-7" style="margin-top:0.5rem;margin-bottom:0.25rem;padding:0.6rem 0.75rem;">' +
+        escapeHtml(message) +
+      '</div>'
+    );
+  }
+
+  function getWarningStatus(warnings) {
+    const codes = (warnings || []).map((warning) => warning && warning.code).filter(Boolean);
+
+    if (codes.includes('term_creation_forbidden') || codes.includes('item_edit_forbidden')) {
+      return getForbiddenFieldStatus();
+    }
+
+    if (
+      codes.includes('term_not_found_closed_vocabulary') ||
+      codes.includes('taxonomy_disallows_term_creation') ||
+      codes.includes('ambiguous_term_name')
+    ) {
+      return getNotFoundFieldStatus();
+    }
+
+    return getFailedFieldStatus();
+  }
+
+  function renderResolutionWarnings(task, resolution) {
+    const warnings = Array.isArray(resolution && resolution.warnings)
+      ? resolution.warnings
+      : [];
+
+    clearPreviewFieldMessages(task.field);
+
+    warnings.forEach((warning) => {
+      appendPreviewFieldMessage(
+        task.field,
+        warning && warning.message ? warning.message : 'Não foi possível resolver um dos valores.',
+        warning && warning.code === 'term_creation_forbidden' ? 'is-danger' : 'is-warning'
+      );
+    });
+
+    if (resolution && resolution.is_taxonomy) {
+      const terms = Array.isArray(resolution.terms) ? resolution.terms : [];
+      const createdTerms = terms.filter((term) => term && term.created);
+
+      if (createdTerms.length) {
+        const names = createdTerms.map((term) => term.term_name || term.input_value).filter(Boolean);
+        appendPreviewFieldMessage(
+          task.field,
+          createdTerms.length === 1
+            ? 'O termo “' + names[0] + '” foi criado automaticamente.'
+            : createdTerms.length + ' termos foram criados automaticamente: ' + names.join('; ') + '.',
+          'is-success'
+        );
+      }
+    }
+
+    return warnings;
   }
 
   function renderPreviewFieldHtml(candidate, applied) {
@@ -607,11 +718,152 @@ function isRestValueEmpty(value) {
   );
 }
 
+function getAjaxErrorData(error) {
+  if (error && error.responseJSON && error.responseJSON.data) {
+    return error.responseJSON.data;
+  }
+
+  if (error && error.data) {
+    return error.data;
+  }
+
+  return {};
+}
+
+function getAjaxErrorMessage(error, fallbackMessage) {
+  const responseData = getAjaxErrorData(error);
+
+  if (responseData && responseData.message) {
+    return responseData.message;
+  }
+
+  if (error && error.message) {
+    return error.message;
+  }
+
+  return fallbackMessage;
+}
+
+function getAjaxErrorStatus(error) {
+  const responseData = getAjaxErrorData(error);
+  const code = responseData && responseData.code ? responseData.code : '';
+
+  if (code === 'forbidden' || code.endsWith('_forbidden')) {
+    return getForbiddenFieldStatus();
+  }
+
+  return getFailedFieldStatus();
+}
+
+async function resolveMetadataValues(itemId, task) {
+  const values = normalizeRestValue(task.value);
+
+  const response = await ajaxPost(
+    'tainacan_openalex_resolve_metadata_values',
+    {
+      item_id: itemId,
+      metadatum_id: task.metadatumId,
+      values: values
+    }
+  );
+
+  if (!response || !response.success) {
+    const failure = response || new Error('Resposta inválida ao resolver o metadado.');
+    throw failure;
+  }
+
+  return response.data || {};
+}
+
+function getResolvedValues(resolution) {
+  if (resolution && resolution.is_taxonomy) {
+    return Array.from(new Set(
+      (Array.isArray(resolution.term_ids) ? resolution.term_ids : [])
+        .map((termId) => parseInt(termId, 10))
+        .filter((termId) => termId > 0)
+    ));
+  }
+
+  return normalizeRestValue(resolution && resolution.values ? resolution.values : []);
+}
+
+async function saveResolvedMetadata(itemId, task, resolvedValues, resolution = null) {
+  let valuesForRest = resolvedValues;
+
+  // Para metadado de Taxonomia não múltiplo, o endpoint REST do Tainacan
+  // não deve receber [term_id]. O controller converte arrays em string via
+  // implode(), e o repositório de termos passa a interpretar "16" como nome
+  // de termo, criando um termo indevido chamado "16". Enviamos o ID como
+  // inteiro escalar para preservar a resolução por term_id.
+  if (
+    resolution &&
+    resolution.is_taxonomy &&
+    !resolution.is_multiple &&
+    Array.isArray(resolvedValues)
+  ) {
+    valuesForRest = resolvedValues.length > 0
+      ? parseInt(resolvedValues[0], 10)
+      : '';
+  }
+
+  const request = {
+    path: `/tainacan/v2/item/${itemId}/metadata/${task.metadatumId}`,
+    method: 'POST',
+    data: {
+      values: valuesForRest
+    }
+  };
+
+  log('[DEBUG] POST REST metadado resolvido:', request);
+  return window.wp.apiFetch(request);
+}
+
+function dispatchMetadataReload(itemId, metadatumId) {
+  window.dispatchEvent(
+    new CustomEvent('TainacanReloadItemMetadataForm', {
+      detail: {
+        itemId: itemId,
+        metadatumId: metadatumId
+      }
+    })
+  );
+}
+
+function getSuccessfulResolutionStatus(resolution) {
+  if (!resolution || !resolution.is_taxonomy) {
+    return getAppliedFieldStatus();
+  }
+
+  const terms = Array.isArray(resolution.terms) ? resolution.terms : [];
+  const createdCount = terms.filter((term) => term && term.created).length;
+
+  if (createdCount > 0) {
+    return getCreatedTermFieldStatus(createdCount);
+  }
+
+  return getExistingTermFieldStatus(terms.length);
+}
+
+function createEmptyQueueResult() {
+  return {
+    applied: 0,
+    partial: 0,
+    failed: 0,
+    skipped: 0,
+    successfulTasks: [],
+    partialTasks: [],
+    failedTasks: [],
+    skippedTasks: [],
+    warnings: []
+  };
+}
+
 async function fillQueue(tasks) {
   console.group('[OpenAlexBiblio][DEBUG] fillQueue REST');
 
   log('[DEBUG] tasks recebidas:', tasks);
 
+  const result = createEmptyQueueResult();
   const itemId = getCurrentTainacanItemId();
 
   log('[DEBUG] itemId detectado:', itemId);
@@ -624,7 +876,12 @@ async function fillQueue(tasks) {
       true
     );
 
-    return 0;
+    result.failed = Array.isArray(tasks) ? tasks.length : 1;
+    result.failedTasks.push({
+      reason: 'item_id_not_found',
+      message: 'Não foi possível identificar o item atual.'
+    });
+    return result;
   }
 
   if (!window.wp || !window.wp.apiFetch) {
@@ -635,13 +892,13 @@ async function fillQueue(tasks) {
       true
     );
 
-    return 0;
+    result.failed = Array.isArray(tasks) ? tasks.length : 1;
+    result.failedTasks.push({
+      reason: 'wp_api_fetch_unavailable',
+      message: 'A API REST do WordPress não está disponível.'
+    });
+    return result;
   }
-
-  let applied = 0;
-  const successful = [];
-  const skipped = [];
-  const failed = [];
 
   console.table(tasks.map((task) => ({
     campo: task.field,
@@ -652,123 +909,234 @@ async function fillQueue(tasks) {
   for (const task of tasks) {
     const field = task.field || '(sem campo)';
     const metadatumId = parseInt(task.metadatumId, 10);
-    const values = normalizeRestValue(task.value);
+    const originalValues = normalizeRestValue(task.value);
+
+    clearPreviewFieldMessages(field);
 
     log('[DEBUG] preparando metadado:', {
       field,
       metadatumId,
       originalValue: task.value,
-      normalizedValues: values
+      normalizedValues: originalValues
     });
 
     if (!metadatumId) {
-      skipped.push({
+      result.skipped++;
+      result.skippedTasks.push({
+        task,
         field,
         metadatumId,
-        reason: 'metadatumId inválido'
+        reason: 'metadatum_id_invalid'
       });
 
-      err('[DEBUG] metadatumId inválido. Campo ignorado:', {
+      updatePreviewFieldStatus(field, getFailedFieldStatus());
+      appendPreviewFieldMessage(field, 'O metadado configurado possui um ID inválido.', 'is-danger');
+      continue;
+    }
+
+    if (isRestValueEmpty(originalValues)) {
+      result.skipped++;
+      result.skippedTasks.push({
+        task,
         field,
         metadatumId,
-        task
+        reason: 'empty_value'
       });
 
       continue;
     }
 
-    if (isRestValueEmpty(values)) {
-      skipped.push({
-        field,
-        metadatumId,
-        reason: 'valor vazio'
-      });
-
-      err('[DEBUG] valor vazio. Campo ignorado:', {
-        field,
-        metadatumId,
-        values
-      });
-
-      continue;
-    }
-
-    const request = {
-      path: `/tainacan/v2/item/${itemId}/metadata/${metadatumId}`,
-      method: 'POST',
-      data: {
-        values: values
-      }
-    };
+    let resolution;
 
     try {
-      log('[DEBUG] POST REST metadado:', request);
+      resolution = await resolveMetadataValues(itemId, {
+        ...task,
+        metadatumId
+      });
+    } catch (resolutionError) {
+      const message = getAjaxErrorMessage(
+        resolutionError,
+        'Não foi possível resolver os valores deste metadado.'
+      );
 
-      const response = await window.wp.apiFetch(request);
-
-      applied++;
-
-      successful.push({
+      result.failed++;
+      result.failedTasks.push({
+        task,
         field,
         metadatumId,
-        values,
-        response
+        stage: 'resolution',
+        error: resolutionError,
+        message
       });
+
+      updatePreviewFieldStatus(field, getAjaxErrorStatus(resolutionError));
+      appendPreviewFieldMessage(field, message, 'is-danger');
+
+      err('[DEBUG] erro na resolução do metadado:', {
+        field,
+        metadatumId,
+        error: resolutionError
+      });
+      continue;
+    }
+
+    const warnings = renderResolutionWarnings(task, resolution);
+    const resolvedValues = getResolvedValues(resolution);
+
+    result.warnings.push(...warnings.map((warning) => ({
+      field,
+      metadatumId,
+      ...warning
+    })));
+
+    log('[DEBUG] resolução concluída:', {
+      field,
+      metadatumId,
+      resolution,
+      resolvedValues
+    });
+
+    if (isRestValueEmpty(resolvedValues)) {
+      result.failed++;
+      result.failedTasks.push({
+        task,
+        field,
+        metadatumId,
+        stage: 'resolution',
+        resolution,
+        warnings,
+        reason: 'no_resolved_values'
+      });
+
+      updatePreviewFieldStatus(field, getWarningStatus(warnings));
+
+      if (!warnings.length) {
+        appendPreviewFieldMessage(
+          field,
+          'Nenhum valor válido pôde ser resolvido para este metadado.',
+          'is-danger'
+        );
+      }
+      continue;
+    }
+
+    try {
+      const response = await saveResolvedMetadata(
+        itemId,
+        {
+          ...task,
+          metadatumId
+        },
+        resolvedValues,
+        resolution
+      );
+
+      dispatchMetadataReload(itemId, metadatumId);
+
+      if (warnings.length > 0) {
+        result.partial++;
+        result.partialTasks.push({
+          task,
+          field,
+          metadatumId,
+          resolvedValues,
+          resolution,
+          warnings,
+          response
+        });
+        updatePreviewFieldStatus(field, getPartialFieldStatus());
+      } else {
+        result.applied++;
+        result.successfulTasks.push({
+          task,
+          field,
+          metadatumId,
+          resolvedValues,
+          resolution,
+          response
+        });
+        updatePreviewFieldStatus(field, getSuccessfulResolutionStatus(resolution));
+      }
 
       log('[DEBUG] POST REST sucesso:', {
         field,
         metadatumId,
-        values,
+        resolvedValues,
         response
       });
-
-      window.dispatchEvent(
-        new CustomEvent('TainacanReloadItemMetadataForm', {
-          detail: {
-            itemId: itemId,
-            metadatumId: metadatumId
-          }
-        })
+    } catch (saveError) {
+      const message = getAjaxErrorMessage(
+        saveError,
+        'Os valores foram resolvidos, mas o metadado não pôde ser atualizado.'
       );
 
-      updatePreviewFieldStatus(field, getAppliedFieldStatus());
-
-      log('[DEBUG] evento disparado para metadado:', {
-        itemId: itemId,
-        metadatumId: metadatumId,
-        field: field
-      });
-
-    } catch (e) {
-      failed.push({
+      result.failed++;
+      result.failedTasks.push({
+        task,
         field,
         metadatumId,
-        values,
-        error: e
+        stage: 'save',
+        resolvedValues,
+        resolution,
+        warnings,
+        error: saveError,
+        message
       });
 
       updatePreviewFieldStatus(field, getFailedFieldStatus());
+      appendPreviewFieldMessage(field, message, 'is-danger');
 
       err('[DEBUG] POST REST erro:', {
         field,
         metadatumId,
-        values,
-        error: e
+        resolvedValues,
+        error: saveError
       });
     }
   }
 
   log('[DEBUG] resumo REST:', {
     itemId,
-    applied,
-    successful,
-    skipped,
-    failed
+    result
   });
 
   console.groupEnd();
+  return result;
+}
 
-  return applied;
+function pluralizeQueueCount(count, singular, plural) {
+  return count + ' ' + (count === 1 ? singular : plural);
+}
+
+function buildQueueSummary(result) {
+  const parts = [];
+
+  if (result.applied > 0) {
+    parts.push(pluralizeQueueCount(result.applied, 'metadado preenchido', 'metadados preenchidos'));
+  }
+
+  if (result.partial > 0) {
+    parts.push(pluralizeQueueCount(result.partial, 'metadado parcialmente preenchido', 'metadados parcialmente preenchidos'));
+  }
+
+  if (result.failed > 0) {
+    parts.push(pluralizeQueueCount(result.failed, 'metadado com falha', 'metadados com falha'));
+  }
+
+  if (result.skipped > 0) {
+    parts.push(pluralizeQueueCount(result.skipped, 'metadado ignorado', 'metadados ignorados'));
+  }
+
+  if (!parts.length) {
+    return 'Nenhum metadado foi processado.';
+  }
+
+  const summary = parts.join(', ') + '.';
+  const needsReview = result.partial > 0 || result.failed > 0 || result.warnings.length > 0;
+
+  return needsReview
+    ? summary + ' Revise os avisos exibidos na prévia.'
+    : summary + ' Revise os valores antes de salvar o item.';
 }
 
 // fim issue 15
@@ -849,26 +1217,35 @@ async function fillQueue(tasks) {
         $fillBtn.addClass('is-loading').prop('disabled', true);
       }
 
-      let applied = 0;
+      let queueResult = createEmptyQueueResult();
 
       try {
-        applied = await fillQueue(tasks);
+        queueResult = await fillQueue(tasks);
       } finally {
         if ($fillBtn && $fillBtn.length) {
           $fillBtn.removeClass('is-loading').prop('disabled', false);
         }
       }
 
-      $('#openalex-biblio-results').empty();
-      $('#openalex-biblio-results-wrap').addClass('is-hidden');
+      const hasReviewableProblems =
+        queueResult.partial > 0 ||
+        queueResult.failed > 0 ||
+        queueResult.warnings.length > 0;
 
-      if (applied > 0) {
-        setStatus(
-          'Metadados enviados ao item. Lembre-se de revisar os valores.',
-          false
-        );
+      if (!hasReviewableProblems) {
+        $('#openalex-biblio-results').empty();
+        $('#openalex-biblio-results-wrap').addClass('is-hidden');
+      }
+
+      const successfulCount = queueResult.applied + queueResult.partial;
+      const summary = buildQueueSummary(queueResult);
+
+      if (successfulCount > 0 && hasReviewableProblems) {
+        setStatus(summary, false, 'is-warning');
+      } else if (successfulCount > 0) {
+        setStatus(summary, false, 'is-success');
       } else {
-        setStatus('Não foi possível enviar os dados para o item.', true);
+        setStatus(summary, true, 'is-danger');
       }
     } catch (xhr) {
       const data = xhr && xhr.responseJSON && xhr.responseJSON.data
