@@ -62,12 +62,13 @@ class Tainacan_OpenAlex_Biblio {
 
     public function enqueue_assets() {
         $url = plugin_dir_url(__FILE__);
+        $css_path = plugin_dir_path(__FILE__) . 'assets/openalex-biblio.css';
 
         wp_enqueue_style(
             'tainacan-openalex-biblio',
             $url . 'assets/openalex-biblio.css',
             [],
-            '0.4.3'
+            file_exists($css_path) ? filemtime($css_path) : '0.4.3'
         );
 
         $js_path = plugin_dir_path(__FILE__) . 'assets/openalex-biblio.js';
@@ -109,7 +110,7 @@ class Tainacan_OpenAlex_Biblio {
         ob_start();
         ?>
         <h4><?php esc_html_e('OpenAlex', 'tainacan-openalex'); ?></h4>
-        <div class="field openalex-biblio-hook">
+        <div class="field openalex-biblio-hook" data-theme="light">
             <label class="label"><?php esc_html_e('Preencher bibliografia', 'tainacan-openalex'); ?></label>
             <p class="help">
                 <?php esc_html_e('Pesquise e clique em um resultado para preencher os metadados do item.', 'tainacan-openalex'); ?>
