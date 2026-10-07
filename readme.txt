@@ -2,7 +2,7 @@
 Contributors: tainacan
 Tags: tainacan, openalex, bibliography, metadata, abnt
 Requires at least: 6.0
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
 Stable tag: 0.1.0
 License: GPLv3 or later
@@ -12,7 +12,7 @@ Search bibliographic works on OpenAlex and fill Tainacan item metadata from the 
 
 == Description ==
 
-**Tainacan OpenAlex Bibliografia** extends [Tainacan](https://wordpress.org/plugins/tainacan/) with an **OpenAlex (Bibliografia)** block in the item admin form. Editors can search scholarly works, pick a result, and have mapped metadata fields filled automatically. Click **Save** on the item to persist the values.
+**Tainacan OpenAlex** extends [Tainacan](https://wordpress.org/plugins/tainacan/) with an **OpenAlex** block in the item admin form. Editors can search scholarly works, pick a result, and have mapped metadata fields filled automatically. Click **Save** on the item to persist the values.
 
 = Features =
 
@@ -26,7 +26,7 @@ Search bibliographic works on OpenAlex and fill Tainacan item metadata from the 
 = How it works =
 
 1. Open an item in the Tainacan admin.
-2. In **OpenAlex (Bibliografia)**, choose the search type and run a query.
+2. In **OpenAlex**, choose the search type and run a query.
 3. Click a result to fill the configured metadata fields.
 4. Save the item.
 
@@ -39,7 +39,7 @@ Search behavior:
 
 = Configuration =
 
-After activation, go to **Tainacan → Settings** and open the **OpenAlex Biblio** section:
+After activation, go to **Tainacan → Settings** and open the **OpenAlex** section:
 
 * **References collection ID** — collection whose item form shows the OpenAlex block
 * **OpenAlex API key** (optional)
@@ -52,10 +52,10 @@ After activation, go to **Tainacan → Settings** and open the **OpenAlex Biblio
 1. Copy the plugin folder to `wp-content/plugins/tainacan-openalex/` (or your chosen slug).
 2. Ensure this structure:
 
-`tainacan-openalex-biblio.php` and `assets/openalex-biblio.js`, `assets/openalex-biblio.css`
+`tainacan-openalex.php`, `readme.txt`, and `build/index.js`, `build/index.css`, `build/index.asset.php`
 
 3. Activate the plugin under **Plugins** in WordPress.
-4. Configure **Tainacan → Settings → OpenAlex Biblio**.
+4. Configure **Tainacan → Settings → OpenAlex**.
 
 = ZIP =
 
@@ -82,6 +82,10 @@ It generates a practical, simplified ABNT-style string. It does not cover every 
 == Changelog ==
 
 = 0.1.0 =
+* English source strings, ready for translation
+* Main plugin file renamed to `tainacan-openalex.php`
+* Admin CSS and JavaScript are built and minified
+* Asset versions follow the plugin header version
 * Admin Form Hook integration for OpenAlex bibliographic search
 * Search by free text, title, author, DOI, and ISSN
 * Metadata mapping and ABNT reference generation

@@ -1,0 +1,12 @@
+.git
+.github
+.gitignore
+.distignore
+.DS_Store
+node_modules
+src
+docs
+package.json
+package-lock.json
+*.map
+*.zip

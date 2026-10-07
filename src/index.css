@@ -1,0 +1,552 @@
+/*
+ * Issue #19 (v2) — keep the OpenAlex UI readable even when Bulma auto-switches
+ * to dark mode through prefers-color-scheme.
+ *
+ * Root cause:
+ * - the previous fix forced light surfaces;
+ * - some text tokens (labels, muted/meta text, content blocks) were still inheriting
+ *   Bulma dark-mode foreground colors/variables, which reduced contrast on white cards.
+ *
+ * Strategy:
+ * - keep the component in light mode;
+ * - force readable foreground colors for the preview/result areas;
+ * - keep tags/notifications with enough contrast.
+ */
+
+.openalex-hook,
+.openalex-confirm-modal {
+  color-scheme: light;
+  --openalex-surface: var(--tainacan-background-color, #ffffff);
+  --openalex-surface-soft: var(--tainacan-gray0, #f7f7f8);
+  --openalex-text: var(--tainacan-label-color, #243342);
+  --openalex-text-strong: var(--tainacan-heading-color, #1f2937);
+  --openalex-text-muted: var(--tainacan-info-color, #5b6673);
+  --openalex-border: var(--tainacan-input-border-color, #d9dee5);
+  --openalex-link: var(--tainacan-secondary, #0b5cad);
+  --openalex-link-hover: var(--tainacan-turquoise6, #084785);
+  --openalex-tag-bg: var(--tainacan-green1, #dff3ef);
+  --openalex-tag-text: var(--tainacan-green2, #1f4d45);
+  --openalex-note-bg: var(--tainacan-yellow1, #d9f0eb);
+  --openalex-note-text: var(--tainacan-yellow2, #1f2937);
+}
+
+/* Surfaces */
+.openalex-hook .box,
+.openalex-hook .card,
+.openalex-hook .openalex-box,
+.openalex-hook .openalex-preview-card,
+.openalex-hook .openalex-item {
+  --bulma-box-background-color: var(--openalex-surface);
+  --bulma-box-color: var(--openalex-text);
+  --bulma-card-background-color: var(--openalex-surface);
+  --bulma-card-color: var(--openalex-text);
+  color: var(--openalex-text) !important;
+}
+
+/* Main text areas inside the imported-values preview */
+.openalex-hook .openalex-preview-wrap,
+.openalex-hook .openalex-results-wrap,
+.openalex-hook .openalex-result-details,
+.openalex-hook .openalex-result-fields,
+.openalex-hook .openalex-result-summary,
+.openalex-hook .openalex-field-value,
+.openalex-hook .openalex-field-value *,
+.openalex-hook .openalex-result-title,
+.openalex-hook .openalex-result-title *,
+.openalex-hook .openalex-result-meta,
+.openalex-hook .openalex-result-meta *,
+.openalex-hook .openalex-result-field .content,
+.openalex-hook .openalex-result-field .content *,
+.openalex-hook .content,
+.openalex-hook .content *,
+.openalex-hook p,
+.openalex-hook strong,
+.openalex-hook li {
+  color: var(--openalex-text) !important;
+}
+
+/* Field labels were the main readability problem in dark mode */
+.openalex-hook .label,
+.openalex-hook .openalex-field-label,
+.openalex-hook .openalex-field-label *,
+.openalex-hook .openalex-results-title,
+.openalex-hook .openalex-results-title * {
+  color: var(--openalex-text-strong) !important;
+  font-weight: 600;
+}
+
+/* Secondary/meta text */
+.openalex-hook .help,
+.openalex-hook .is-size-7,
+.openalex-hook .has-text-grey,
+.openalex-hook .has-text-grey-light,
+.openalex-hook .has-text-grey-dark {
+  color: var(--openalex-text-muted) !important;
+}
+
+/* Links */
+.openalex-hook a {
+  color: var(--openalex-link) !important;
+}
+
+.openalex-hook a:hover,
+.openalex-hook a:focus {
+  color: var(--openalex-link-hover) !important;
+}
+
+/* Tags/badges like "Preenchido", "Valor vazio", etc. */
+.openalex-hook .tag,
+.openalex-hook .openalex-field-status {
+  background-color: var(--openalex-tag-bg) !important;
+  color: var(--openalex-tag-text) !important;
+  border: 0;
+  font-size: 0.625rem;
+  height: auto;
+  padding: 0.1rem 0.4rem;
+}
+
+/* Notifications/info boxes */
+.openalex-hook .notification,
+.openalex-hook .message,
+.openalex-hook .message-body,
+.openalex-hook .openalex-resolved-info {
+  background-color: var(--openalex-note-bg) !important;
+  color: var(--openalex-note-text) !important;
+}
+
+/* Dividers/borders */
+.openalex-hook hr,
+.openalex-hook .openalex-result-details {
+  border-color: var(--openalex-border) !important;
+}
+
+.openalex-box {
+  margin-bottom: 0;
+}
+
+.openalex-search-shell {
+  position: relative;
+}
+
+.openalex-search-row {
+  margin-bottom: 0 !important;
+}
+
+.openalex-status-message,
+.openalex-preview-wrap {
+  margin-top: 0.75rem;
+}
+
+/*
+ * Issue #14: os resultados agora aparecem como uma lista suspensa sobre o
+ * formulário, sem aumentar a altura da página inteira.
+ */
+.openalex-dropdown {
+  position: absolute;
+  z-index: 999;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  right: 0;
+  max-height: min(22rem, 55vh);
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 !important;
+  border-radius: var(--tainacan-input-border-radius, 2px) !important;
+  background-color: var(--openalex-surface);
+  color: var(--openalex-text);
+  border: 1px solid var(--openalex-border);
+}
+
+.openalex-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.openalex-suggestion {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0.85rem;
+  border: 0;
+  border-bottom: 1px solid var(--openalex-border);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.openalex-suggestion:last-child {
+  border-bottom: 0;
+}
+
+.openalex-suggestion:hover,
+.openalex-suggestion:focus-visible {
+  background-color: var(--openalex-surface-soft);
+}
+
+.openalex-suggestion:focus-visible {
+  outline: 2px solid var(--openalex-link);
+  outline-offset: -2px;
+}
+
+.openalex-suggestion-copy {
+  min-width: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.openalex-suggestion-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.openalex-suggestion-meta {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--openalex-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.openalex-suggestion-action {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--openalex-link);
+}
+
+.openalex-empty-result {
+  padding: 0.75rem 0.85rem;
+  font-size: 0.8rem;
+  color: var(--openalex-text-muted);
+}
+
+.openalex-result-summary {
+  margin-bottom: 0.5rem;
+}
+
+.openalex-result-title {
+  margin-bottom: 0.25rem;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.openalex-result-meta {
+  margin-bottom: 0;
+  color: var(--openalex-text-muted);
+}
+
+.openalex-result-details {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--openalex-border);
+}
+
+.openalex-item .openalex-result-details {
+  margin-bottom: 0.75rem;
+}
+
+.openalex-preview-card .openalex-result-details {
+  margin-bottom: 0;
+}
+
+.openalex-result-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.openalex-result-field .content {
+  margin-bottom: 0;
+}
+
+.openalex-field-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
+
+.openalex-field-value {
+  margin-bottom: 0 !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.openalex-item {
+  margin-bottom: 0;
+}
+
+.openalex-result-actions {
+  margin-bottom: 0;
+}
+
+.openalex-resolved-info {
+  margin-bottom: 0 !important;
+}
+
+/*
+ * Issue #14 — drawer de confirmação.
+ * Não dependemos da geometria do .modal/.modal-card do Bulma porque o editor
+ * do Tainacan e a admin bar do WordPress criam stacking contexts próprios.
+ */
+.openalex-confirm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  font-family: inherit;
+}
+
+.openalex-confirm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--tainacan-backdrop-background-color, rgba(0, 0, 0, 0.35)) !important;
+}
+
+.openalex-confirm-panel {
+  position: relative;
+  z-index: 1;
+  width: min(46rem, 58vw);
+  min-width: 34rem;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: var(--openalex-surface);
+  color: var(--openalex-text);
+  border-left: 1px solid var(--openalex-border);
+  box-shadow: -14px 0 36px rgba(0, 0, 0, 0.18);
+}
+
+.openalex-confirm-header {
+  flex: 0 0 auto;
+  min-height: 5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  box-sizing: border-box;
+  background: var(--openalex-surface);
+  border-bottom: 1px solid var(--openalex-border);
+}
+
+.openalex-confirm-heading {
+  min-width: 0;
+}
+
+.openalex-confirm-kicker {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: var(--openalex-text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.openalex-confirm-header h2 {
+  margin: 0;
+  color: inherit;
+  font-size: 1.35rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.openalex-confirm-close {
+  flex: 0 0 2.25rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--openalex-text);
+  font: inherit;
+  font-size: 1.65rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.openalex-confirm-close:hover,
+.openalex-confirm-close:focus-visible {
+  background: var(--openalex-surface-soft);
+}
+
+.openalex-confirm-close:focus-visible {
+  outline: 2px solid var(--openalex-link);
+  outline-offset: 2px;
+}
+
+.openalex-confirm-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.35rem 1.5rem 1.6rem;
+  box-sizing: border-box;
+  scrollbar-gutter: stable;
+}
+
+.openalex-confirm-note,
+.openalex-modal-status-message {
+  margin: 0 0 1rem !important;
+}
+
+.openalex-modal-work-summary {
+  margin: 0 0 0.9rem;
+  padding: 0 0 1rem;
+  border-bottom: 1px solid var(--openalex-border);
+}
+
+.openalex-modal-work-summary .openalex-result-summary {
+  margin: 0;
+}
+
+.openalex-confirm-panel .openalex-result-title {
+  margin: 0 0 0.3rem;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.openalex-confirm-panel .openalex-result-meta {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.openalex-modal-fields {
+  gap: 0;
+}
+
+.openalex-modal-fields .openalex-result-field {
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--openalex-border);
+}
+
+.openalex-modal-fields .openalex-result-field:first-child {
+  padding-top: 0.15rem;
+}
+
+.openalex-modal-fields .openalex-result-field:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.openalex-confirm-panel .openalex-field-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.79rem;
+  line-height: 1.25;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.openalex-confirm-panel .openalex-field-label strong {
+  color: inherit;
+  font-weight: 650;
+}
+
+.openalex-confirm-panel .openalex-field-value {
+  margin: 0 !important;
+  color: inherit;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.openalex-confirm-panel .openalex-field-status {
+  font-size: 0.64rem;
+  line-height: 1.2;
+  padding: 0.18rem 0.48rem;
+}
+
+.openalex-confirm-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  min-height: 4.5rem;
+  padding: 0.9rem 1.5rem;
+  box-sizing: border-box;
+  background: var(--openalex-surface);
+  border-top: 1px solid var(--openalex-border);
+}
+
+.openalex-confirm-footer .button {
+  margin: 0;
+}
+
+.openalex-modal-loading {
+  min-height: 10rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: inherit;
+}
+
+.openalex-modal-loading .button {
+  pointer-events: none;
+  border-color: transparent;
+  background: transparent;
+}
+
+.openalex-field-resolution-messages .notification:last-child {
+  margin-bottom: 0 !important;
+}
+
+.openalex-results-wrap.is-hidden {
+  display: none !important;
+}
+
+@media screen and (max-width: 768px) {
+  .openalex-dropdown {
+    max-height: 50vh;
+  }
+
+  .openalex-suggestion {
+    align-items: flex-start;
+  }
+
+  .openalex-suggestion-action {
+    display: none;
+  }
+
+  .openalex-confirm-panel {
+    width: 100vw;
+    min-width: 0;
+    border-left: 0;
+  }
+
+  .openalex-confirm-header,
+  .openalex-confirm-body,
+  .openalex-confirm-footer {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .openalex-confirm-footer {
+    flex-wrap: wrap;
+  }
+}
