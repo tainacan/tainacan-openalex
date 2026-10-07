@@ -13,7 +13,7 @@
  * - keep tags/notifications with enough contrast.
  */
 
-.openalex-biblio-hook {
+.openalex-hook {
   color-scheme: light;
   --openalex-surface: #ffffff;
   --openalex-surface-soft: #f7f7f8;
@@ -30,11 +30,11 @@
 }
 
 /* Surfaces */
-.openalex-biblio-hook .box,
-.openalex-biblio-hook .card,
-.openalex-biblio-hook .openalex-biblio-box,
-.openalex-biblio-hook .openalex-biblio-preview-card,
-.openalex-biblio-hook .openalex-biblio-item {
+.openalex-hook .box,
+.openalex-hook .card,
+.openalex-hook .openalex-box,
+.openalex-hook .openalex-preview-card,
+.openalex-hook .openalex-item {
   --bulma-box-background-color: var(--openalex-surface);
   --bulma-box-color: var(--openalex-text);
   --bulma-card-background-color: var(--openalex-surface);
@@ -44,59 +44,59 @@
 }
 
 /* Main text areas inside the imported-values preview */
-.openalex-biblio-hook .openalex-biblio-preview-wrap,
-.openalex-biblio-hook .openalex-biblio-results-wrap,
-.openalex-biblio-hook .openalex-biblio-result-details,
-.openalex-biblio-hook .openalex-biblio-result-fields,
-.openalex-biblio-hook .openalex-biblio-result-summary,
-.openalex-biblio-hook .openalex-biblio-field-value,
-.openalex-biblio-hook .openalex-biblio-field-value *,
-.openalex-biblio-hook .openalex-biblio-result-title,
-.openalex-biblio-hook .openalex-biblio-result-title *,
-.openalex-biblio-hook .openalex-biblio-result-meta,
-.openalex-biblio-hook .openalex-biblio-result-meta *,
-.openalex-biblio-hook .openalex-biblio-result-field .content,
-.openalex-biblio-hook .openalex-biblio-result-field .content *,
-.openalex-biblio-hook .content,
-.openalex-biblio-hook .content *,
-.openalex-biblio-hook p,
-.openalex-biblio-hook strong,
-.openalex-biblio-hook li {
+.openalex-hook .openalex-preview-wrap,
+.openalex-hook .openalex-results-wrap,
+.openalex-hook .openalex-result-details,
+.openalex-hook .openalex-result-fields,
+.openalex-hook .openalex-result-summary,
+.openalex-hook .openalex-field-value,
+.openalex-hook .openalex-field-value *,
+.openalex-hook .openalex-result-title,
+.openalex-hook .openalex-result-title *,
+.openalex-hook .openalex-result-meta,
+.openalex-hook .openalex-result-meta *,
+.openalex-hook .openalex-result-field .content,
+.openalex-hook .openalex-result-field .content *,
+.openalex-hook .content,
+.openalex-hook .content *,
+.openalex-hook p,
+.openalex-hook strong,
+.openalex-hook li {
   color: var(--openalex-text) !important;
 }
 
 /* Field labels were the main readability problem in dark mode */
-.openalex-biblio-hook .label,
-.openalex-biblio-hook .openalex-biblio-field-label,
-.openalex-biblio-hook .openalex-biblio-field-label *,
-.openalex-biblio-hook .openalex-biblio-results-title,
-.openalex-biblio-hook .openalex-biblio-results-title * {
+.openalex-hook .label,
+.openalex-hook .openalex-field-label,
+.openalex-hook .openalex-field-label *,
+.openalex-hook .openalex-results-title,
+.openalex-hook .openalex-results-title * {
   color: var(--openalex-text-strong) !important;
   font-weight: 600;
 }
 
 /* Secondary/meta text */
-.openalex-biblio-hook .help,
-.openalex-biblio-hook .is-size-7,
-.openalex-biblio-hook .has-text-grey,
-.openalex-biblio-hook .has-text-grey-light,
-.openalex-biblio-hook .has-text-grey-dark {
+.openalex-hook .help,
+.openalex-hook .is-size-7,
+.openalex-hook .has-text-grey,
+.openalex-hook .has-text-grey-light,
+.openalex-hook .has-text-grey-dark {
   color: var(--openalex-text-muted) !important;
 }
 
 /* Links */
-.openalex-biblio-hook a {
+.openalex-hook a {
   color: var(--openalex-link) !important;
 }
 
-.openalex-biblio-hook a:hover,
-.openalex-biblio-hook a:focus {
+.openalex-hook a:hover,
+.openalex-hook a:focus {
   color: var(--openalex-link-hover) !important;
 }
 
 /* Tags/badges like "Preenchido", "Valor vazio", etc. */
-.openalex-biblio-hook .tag,
-.openalex-biblio-hook .openalex-biblio-field-status {
+.openalex-hook .tag,
+.openalex-hook .openalex-field-status {
   background-color: var(--openalex-tag-bg) !important;
   color: var(--openalex-tag-text) !important;
   border: 0;
@@ -106,34 +106,34 @@
 }
 
 /* Notifications/info boxes */
-.openalex-biblio-hook .notification,
-.openalex-biblio-hook .message,
-.openalex-biblio-hook .message-body,
-.openalex-biblio-hook .openalex-biblio-resolved-info {
+.openalex-hook .notification,
+.openalex-hook .message,
+.openalex-hook .message-body,
+.openalex-hook .openalex-resolved-info {
   background-color: var(--openalex-note-bg) !important;
   color: var(--openalex-note-text) !important;
 }
 
 /* Dividers/borders */
-.openalex-biblio-hook hr,
-.openalex-biblio-hook .openalex-biblio-result-details {
+.openalex-hook hr,
+.openalex-hook .openalex-result-details {
   border-color: var(--openalex-border) !important;
 }
 
-.openalex-biblio-box {
+.openalex-box {
   margin-bottom: 0;
 }
 
-.openalex-biblio-search-shell {
+.openalex-search-shell {
   position: relative;
 }
 
-.openalex-biblio-search-row {
+.openalex-search-row {
   margin-bottom: 0 !important;
 }
 
-.openalex-biblio-status-message,
-.openalex-biblio-preview-wrap {
+.openalex-status-message,
+.openalex-preview-wrap {
   margin-top: 0.75rem;
 }
 
@@ -141,7 +141,7 @@
  * Issue #14: os resultados agora aparecem como uma lista suspensa sobre o
  * formulário, sem aumentar a altura da página inteira.
  */
-.openalex-biblio-dropdown {
+.openalex-dropdown {
   position: absolute;
   z-index: 60;
   top: calc(100% + 0.35rem);
@@ -156,13 +156,13 @@
   border: 1px solid var(--bulma-border, #dbdbdb);
 }
 
-.openalex-biblio-results-list {
+.openalex-results-list {
   display: flex;
   flex-direction: column;
   gap: 0;
 }
 
-.openalex-biblio-suggestion {
+.openalex-suggestion {
   width: 100%;
   display: flex;
   align-items: center;
@@ -179,21 +179,21 @@
   cursor: pointer;
 }
 
-.openalex-biblio-suggestion:last-child {
+.openalex-suggestion:last-child {
   border-bottom: 0;
 }
 
-.openalex-biblio-suggestion:hover,
-.openalex-biblio-suggestion:focus-visible {
+.openalex-suggestion:hover,
+.openalex-suggestion:focus-visible {
   background-color: var(--bulma-scheme-main-bis, #f5f5f5);
 }
 
-.openalex-biblio-suggestion:focus-visible {
+.openalex-suggestion:focus-visible {
   outline: 2px solid var(--bulma-primary, #485fc7);
   outline-offset: -2px;
 }
 
-.openalex-biblio-suggestion-copy {
+.openalex-suggestion-copy {
   min-width: 0;
   display: flex;
   flex: 1 1 auto;
@@ -201,72 +201,72 @@
   gap: 0.2rem;
 }
 
-.openalex-biblio-suggestion-title {
+.openalex-suggestion-title {
   font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
 
-.openalex-biblio-suggestion-meta {
+.openalex-suggestion-meta {
   font-size: 0.75rem;
   line-height: 1.35;
   color: var(--bulma-text-weak, #6b7280);
   overflow-wrap: anywhere;
 }
 
-.openalex-biblio-suggestion-action {
+.openalex-suggestion-action {
   flex: 0 0 auto;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--bulma-primary, #485fc7);
 }
 
-.openalex-biblio-empty-result {
+.openalex-empty-result {
   padding: 0.75rem 0.85rem;
   font-size: 0.8rem;
   color: var(--bulma-text-weak, #6b7280);
 }
 
-.openalex-biblio-result-summary {
+.openalex-result-summary {
   margin-bottom: 0.5rem;
 }
 
-.openalex-biblio-result-title {
+.openalex-result-title {
   margin-bottom: 0.25rem;
   font-size: 0.95rem;
   line-height: 1.35;
 }
 
-.openalex-biblio-result-meta {
+.openalex-result-meta {
   margin-bottom: 0;
   color: var(--bulma-text-weak, inherit);
 }
 
-.openalex-biblio-result-details {
+.openalex-result-details {
   padding-top: 0.5rem;
   border-top: 1px solid var(--openalex-border);
 }
 
-.openalex-biblio-item .openalex-biblio-result-details {
+.openalex-item .openalex-result-details {
   margin-bottom: 0.75rem;
 }
 
-.openalex-biblio-preview-card .openalex-biblio-result-details {
+.openalex-preview-card .openalex-result-details {
   margin-bottom: 0;
 }
 
-.openalex-biblio-result-fields {
+.openalex-result-fields {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.openalex-biblio-result-field .content {
+.openalex-result-field .content {
   margin-bottom: 0;
 }
 
-.openalex-biblio-field-label {
+.openalex-field-label {
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -274,22 +274,22 @@
   margin-bottom: 0.25rem;
 }
 
-.openalex-biblio-field-value {
+.openalex-field-value {
   margin-bottom: 0 !important;
   word-break: break-word;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
-.openalex-biblio-item {
+.openalex-item {
   margin-bottom: 0;
 }
 
-.openalex-biblio-result-actions {
+.openalex-result-actions {
   margin-bottom: 0;
 }
 
-.openalex-biblio-resolved-info {
+.openalex-resolved-info {
   margin-bottom: 0 !important;
 }
 
@@ -298,7 +298,7 @@
  * Não dependemos da geometria do .modal/.modal-card do Bulma porque o editor
  * do Tainacan e a admin bar do WordPress criam stacking contexts próprios.
  */
-.openalex-biblio-confirm-modal {
+.openalex-confirm-modal {
   position: fixed;
   inset: 0;
   z-index: 2147483000;
@@ -308,14 +308,14 @@
   font-family: inherit;
 }
 
-.openalex-biblio-confirm-backdrop {
+.openalex-confirm-backdrop {
   position: absolute;
   inset: 0;
   background: rgba(17, 24, 39, 0.56);
   backdrop-filter: blur(1px);
 }
 
-.openalex-biblio-confirm-panel {
+.openalex-confirm-panel {
   position: relative;
   z-index: 1;
   width: min(46rem, 58vw);
@@ -333,7 +333,7 @@
   box-shadow: -14px 0 36px rgba(0, 0, 0, 0.18);
 }
 
-.openalex-biblio-confirm-header {
+.openalex-confirm-header {
   flex: 0 0 auto;
   min-height: 5rem;
   display: flex;
@@ -346,11 +346,11 @@
   border-bottom: 1px solid var(--bulma-border, #dbdbdb);
 }
 
-.openalex-biblio-confirm-heading {
+.openalex-confirm-heading {
   min-width: 0;
 }
 
-.openalex-biblio-confirm-kicker {
+.openalex-confirm-kicker {
   display: block;
   margin-bottom: 0.2rem;
   color: var(--bulma-text-weak, #6b7280);
@@ -361,7 +361,7 @@
   text-transform: uppercase;
 }
 
-.openalex-biblio-confirm-header h2 {
+.openalex-confirm-header h2 {
   margin: 0;
   color: inherit;
   font-size: 1.35rem;
@@ -369,7 +369,7 @@
   line-height: 1.25;
 }
 
-.openalex-biblio-confirm-close {
+.openalex-confirm-close {
   flex: 0 0 2.25rem;
   width: 2.25rem;
   height: 2.25rem;
@@ -388,17 +388,17 @@
   cursor: pointer;
 }
 
-.openalex-biblio-confirm-close:hover,
-.openalex-biblio-confirm-close:focus-visible {
+.openalex-confirm-close:hover,
+.openalex-confirm-close:focus-visible {
   background: var(--bulma-scheme-main-bis, #f3f4f6);
 }
 
-.openalex-biblio-confirm-close:focus-visible {
+.openalex-confirm-close:focus-visible {
   outline: 2px solid var(--bulma-primary, #485fc7);
   outline-offset: 2px;
 }
 
-.openalex-biblio-confirm-body {
+.openalex-confirm-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -408,53 +408,53 @@
   scrollbar-gutter: stable;
 }
 
-.openalex-biblio-confirm-note,
-.openalex-biblio-modal-status-message {
+.openalex-confirm-note,
+.openalex-modal-status-message {
   margin: 0 0 1rem !important;
 }
 
-.openalex-biblio-modal-work-summary {
+.openalex-modal-work-summary {
   margin: 0 0 0.9rem;
   padding: 0 0 1rem;
   border-bottom: 1px solid var(--bulma-border, #dbdbdb);
 }
 
-.openalex-biblio-modal-work-summary .openalex-biblio-result-summary {
+.openalex-modal-work-summary .openalex-result-summary {
   margin: 0;
 }
 
-.openalex-biblio-confirm-panel .openalex-biblio-result-title {
+.openalex-confirm-panel .openalex-result-title {
   margin: 0 0 0.3rem;
   font-size: 1rem;
   font-weight: 650;
   line-height: 1.4;
 }
 
-.openalex-biblio-confirm-panel .openalex-biblio-result-meta {
+.openalex-confirm-panel .openalex-result-meta {
   margin: 0;
   font-size: 0.78rem;
   line-height: 1.45;
 }
 
-.openalex-biblio-modal-fields {
+.openalex-modal-fields {
   gap: 0;
 }
 
-.openalex-biblio-modal-fields .openalex-biblio-result-field {
+.openalex-modal-fields .openalex-result-field {
   padding: 0.9rem 0;
   border-bottom: 1px solid var(--bulma-border, #dbdbdb);
 }
 
-.openalex-biblio-modal-fields .openalex-biblio-result-field:first-child {
+.openalex-modal-fields .openalex-result-field:first-child {
   padding-top: 0.15rem;
 }
 
-.openalex-biblio-modal-fields .openalex-biblio-result-field:last-child {
+.openalex-modal-fields .openalex-result-field:last-child {
   padding-bottom: 0;
   border-bottom: 0;
 }
 
-.openalex-biblio-confirm-panel .openalex-biblio-field-label {
+.openalex-confirm-panel .openalex-field-label {
   margin: 0 0 0.35rem;
   font-size: 0.79rem;
   line-height: 1.25;
@@ -462,25 +462,25 @@
   text-transform: none;
 }
 
-.openalex-biblio-confirm-panel .openalex-biblio-field-label strong {
+.openalex-confirm-panel .openalex-field-label strong {
   color: inherit;
   font-weight: 650;
 }
 
-.openalex-biblio-confirm-panel .openalex-biblio-field-value {
+.openalex-confirm-panel .openalex-field-value {
   margin: 0 !important;
   color: inherit;
   font-size: 0.92rem;
   line-height: 1.5;
 }
 
-.openalex-biblio-confirm-panel .openalex-biblio-field-status {
+.openalex-confirm-panel .openalex-field-status {
   font-size: 0.64rem;
   line-height: 1.2;
   padding: 0.18rem 0.48rem;
 }
 
-.openalex-biblio-confirm-footer {
+.openalex-confirm-footer {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -493,11 +493,11 @@
   border-top: 1px solid var(--bulma-border, #dbdbdb);
 }
 
-.openalex-biblio-confirm-footer .button {
+.openalex-confirm-footer .button {
   margin: 0;
 }
 
-.openalex-biblio-modal-loading {
+.openalex-modal-loading {
   min-height: 10rem;
   display: flex;
   align-items: center;
@@ -506,47 +506,47 @@
   color: inherit;
 }
 
-.openalex-biblio-modal-loading .button {
+.openalex-modal-loading .button {
   pointer-events: none;
   border-color: transparent;
   background: transparent;
 }
 
-.openalex-biblio-field-resolution-messages .notification:last-child {
+.openalex-field-resolution-messages .notification:last-child {
   margin-bottom: 0 !important;
 }
 
-.openalex-biblio-results-wrap.is-hidden {
+.openalex-results-wrap.is-hidden {
   display: none !important;
 }
 
 @media screen and (max-width: 768px) {
-  .openalex-biblio-dropdown {
+  .openalex-dropdown {
     max-height: 50vh;
   }
 
-  .openalex-biblio-suggestion {
+  .openalex-suggestion {
     align-items: flex-start;
   }
 
-  .openalex-biblio-suggestion-action {
+  .openalex-suggestion-action {
     display: none;
   }
 
-  .openalex-biblio-confirm-panel {
+  .openalex-confirm-panel {
     width: 100vw;
     min-width: 0;
     border-left: 0;
   }
 
-  .openalex-biblio-confirm-header,
-  .openalex-biblio-confirm-body,
-  .openalex-biblio-confirm-footer {
+  .openalex-confirm-header,
+  .openalex-confirm-body,
+  .openalex-confirm-footer {
     padding-left: 1rem;
     padding-right: 1rem;
   }
 
-  .openalex-biblio-confirm-footer {
+  .openalex-confirm-footer {
     flex-wrap: wrap;
   }
 }

@@ -1,26 +1,29 @@
+import { __, sprintf } from '@wordpress/i18n';
+import './index.css';
+
 (function ($) {
   'use strict';
 
-  const NS = '[OpenAlexBiblio]';
+  const NS = '[OpenAlex]';
   const log = (...a) => { try { console.log(NS, ...a); } catch (e) {} };
   const err = (...a) => { try { console.error(NS, ...a); } catch (e) {} };
 
   const SEARCH_PLACEHOLDERS = {
-    free: 'Ex.: privacy by design, machine learning, artigo sobre LGPD',
-    title: 'Ex.: Privacy by Design in Information Systems',
-    author: 'Ex.: Ann Cavoukian',
-    doi: 'Ex.: 10.1038/s41586-020-2649-2',
-    issn: 'Ex.: 0028-0836'
+    free: __('E.g. privacy by design, machine learning', 'tainacan-openalex'),
+    title: __('E.g. Privacy by Design in Information Systems', 'tainacan-openalex'),
+    author: __('E.g. Ann Cavoukian', 'tainacan-openalex'),
+    doi: __('E.g. 10.1038/s41586-020-2649-2', 'tainacan-openalex'),
+    issn: __('E.g. 0028-0846', 'tainacan-openalex')
   };
 
   const WORK_FIELDS = [
-    { key: 'title', label: 'Título' },
-    { key: 'authors', label: 'Autores' },
-    { key: 'year', label: 'Ano' },
-    { key: 'doi', label: 'DOI' },
-    { key: 'venue', label: 'Periódico/Veículo' },
-    { key: 'url', label: 'URL' },
-    { key: 'abnt', label: 'Referência ABNT' },
+    { key: 'title', label: __('Title', 'tainacan-openalex') },
+    { key: 'authors', label: __('Authors', 'tainacan-openalex') },
+    { key: 'year', label: __('Year', 'tainacan-openalex') },
+    { key: 'doi', label: __('DOI', 'tainacan-openalex') },
+    { key: 'venue', label: __('Journal/Venue', 'tainacan-openalex') },
+    { key: 'url', label: __('URL', 'tainacan-openalex') },
+    { key: 'abnt', label: __('ABNT reference', 'tainacan-openalex') },
   ];
 
   const WORK_DETAIL_FIELDS = ['doi', 'venue', 'url', 'abnt'];
@@ -31,7 +34,7 @@
   // Root do Form Hook
   // =========================
   function getRoot() {
-    return document.getElementById('openalex-biblio-hook-root');
+    return document.getElementById('openalex-hook-root');
   }
 
   // O drawer de confirmação precisa viver diretamente no <body>.
@@ -39,11 +42,11 @@
   // o modal dentro da coluna do Form Hook e garante que ele fique acima
   // da admin bar e da barra fixa de ações do editor.
   function getConfirmationModalRoot() {
-    let root = document.getElementById('openalex-biblio-modal-root');
+    let root = document.getElementById('openalex-modal-root');
 
     if (!root) {
       root = document.createElement('div');
-      root.id = 'openalex-biblio-modal-root';
+      root.id = 'openalex-modal-root';
     }
 
     if (root.parentNode !== document.body) {
@@ -61,15 +64,15 @@
     root.__openalexMounted = true;
 
     root.innerHTML = `
-      <div class="openalex-biblio-box">
-        <div class="openalex-biblio-search-shell">
-          <div class="field is-grouped is-grouped-multiline openalex-biblio-search-row">
+      <div class="openalex-box">
+        <div class="openalex-search-shell">
+          <div class="field is-grouped is-grouped-multiline openalex-search-row">
             <div class="control">
               <span class="select">
-                <select id="openalex-biblio-search-type" aria-label="Tipo de busca no OpenAlex">
-                  <option value="free" selected>Busca livre</option>
-                  <option value="title">Título</option>
-                  <option value="author">Autor</option>
+                <select id="openalex-search-type" aria-label="${__('OpenAlex search type', 'tainacan-openalex')}">
+                  <option value="free" selected>${__('Free search', 'tainacan-openalex')}</option>
+                  <option value="title">${__('Title', 'tainacan-openalex')}</option>
+                  <option value="author">${__('Author', 'tainacan-openalex')}</option>
                   <option value="doi">DOI</option>
                   <option value="issn">ISSN</option>
                 </select>
@@ -79,30 +82,30 @@
               <input
                 type="text"
                 class="input"
-                id="openalex-biblio-query"
+                id="openalex-query"
                 placeholder="${SEARCH_PLACEHOLDERS.free}"
                 autocomplete="off"
                 aria-autocomplete="list"
-                aria-controls="openalex-biblio-results"
+                aria-controls="openalex-results"
                 aria-expanded="false"
               />
             </div>
             <div class="control">
-              <button type="button" class="button is-primary" id="openalex-biblio-search">Buscar</button>
+              <button type="button" class="button is-primary" id="openalex-search">${__('Search', 'tainacan-openalex')}</button>
             </div>
           </div>
 
           <div
-            id="openalex-biblio-results-wrap"
-            class="box openalex-biblio-results-wrap openalex-biblio-dropdown is-hidden"
+            id="openalex-results-wrap"
+            class="box openalex-results-wrap openalex-dropdown is-hidden"
             role="listbox"
-            aria-label="Resultados da busca no OpenAlex"
+            aria-label="${__('OpenAlex search results', 'tainacan-openalex')}"
           >
-            <div id="openalex-biblio-results" class="openalex-biblio-results-list"></div>
+            <div id="openalex-results" class="openalex-results-list"></div>
           </div>
         </div>
 
-        <div id="openalex-biblio-status" class="openalex-biblio-status"></div>
+        <div id="openalex-status" class="openalex-status"></div>
       </div>
     `;
 
@@ -121,7 +124,7 @@
   // Status / utils
   // =========================
   function setStatus(html, isError, requestedTone) {
-    const $st = $('#openalex-biblio-status');
+    const $st = $('#openalex-status');
     if (!html) {
       $st.empty();
       return;
@@ -130,11 +133,11 @@
     const tone = allowedTones.includes(requestedTone)
       ? requestedTone
       : (isError ? 'is-danger' : 'is-primary');
-    $st.html(`<div class="notification ${tone} is-light is-size-7 openalex-biblio-status-message openalex-biblio-resolved-info">${html}</div>`);
+    $st.html(`<div class="notification ${tone} is-light is-size-7 openalex-status-message openalex-resolved-info">${html}</div>`);
   }
 
   function clearWorkPreview() {
-  $('#openalex-biblio-preview').empty();
+  $('#openalex-preview').empty();
   }
 
 function getCandidateDisplayValue(candidates, field) {
@@ -153,66 +156,66 @@ function getCandidateDisplayValue(candidates, field) {
     const empty = isRestValueEmpty(candidate.value);
 
     if (!mapped) {
-      return { label: 'Não mapeado', className: 'is-warning' };
+      return { label: __('Not mapped', 'tainacan-openalex'), className: 'is-warning' };
     }
 
     if (empty) {
-      return { label: 'Valor vazio', className: 'is-primary' };
+      return { label: __('Empty value', 'tainacan-openalex'), className: 'is-primary' };
     }
 
-    return { label: 'Mapeado', className: 'is-success' };
+    return { label: __('Mapped', 'tainacan-openalex'), className: 'is-success' };
   }
 
   function getAppliedFieldStatus() {
-    return { label: 'Preenchido', className: 'is-success' };
+    return { label: __('Filled', 'tainacan-openalex'), className: 'is-success' };
   }
 
   function getFailedFieldStatus() {
-    return { label: 'Falhou', className: 'is-danger' };
+    return { label: __('Failed', 'tainacan-openalex'), className: 'is-danger' };
   }
 
   function getExistingTermFieldStatus(count) {
     return {
-      label: count === 1 ? 'Termo existente' : 'Termos existentes',
+      label: count === 1 ? __('Existing term', 'tainacan-openalex') : __('Existing terms', 'tainacan-openalex'),
       className: 'is-success'
     };
   }
 
   function getCreatedTermFieldStatus(count) {
     return {
-      label: count === 1 ? 'Termo criado' : 'Termos criados',
+      label: count === 1 ? __('Created term', 'tainacan-openalex') : __('Created terms', 'tainacan-openalex'),
       className: 'is-success'
     };
   }
 
   function getPartialFieldStatus() {
-    return { label: 'Parcial', className: 'is-warning' };
+    return { label: __('Partial', 'tainacan-openalex'), className: 'is-warning' };
   }
 
   function getNotFoundFieldStatus() {
-    return { label: 'Não encontrado', className: 'is-warning' };
+    return { label: __('Not found', 'tainacan-openalex'), className: 'is-warning' };
   }
 
   function getForbiddenFieldStatus() {
-    return { label: 'Sem permissão', className: 'is-danger' };
+    return { label: __('No permission', 'tainacan-openalex'), className: 'is-danger' };
   }
 
   function clearPreviewFieldMessages(fieldKey) {
-    const $field = $('.openalex-biblio-confirm-modal .openalex-biblio-result-field[data-field="' + fieldKey + '"], .openalex-biblio-preview-card .openalex-biblio-result-field[data-field="' + fieldKey + '"]').first();
-    $field.find('.openalex-biblio-field-resolution-messages').remove();
+    const $field = $('.openalex-confirm-modal .openalex-result-field[data-field="' + fieldKey + '"], .openalex-preview-card .openalex-result-field[data-field="' + fieldKey + '"]').first();
+    $field.find('.openalex-field-resolution-messages').remove();
   }
 
   function appendPreviewFieldMessage(fieldKey, message, tone) {
-    const $field = $('.openalex-biblio-confirm-modal .openalex-biblio-result-field[data-field="' + fieldKey + '"], .openalex-biblio-preview-card .openalex-biblio-result-field[data-field="' + fieldKey + '"]').first();
+    const $field = $('.openalex-confirm-modal .openalex-result-field[data-field="' + fieldKey + '"], .openalex-preview-card .openalex-result-field[data-field="' + fieldKey + '"]').first();
 
     if (!$field.length || !message) {
       return;
     }
 
-    let $messages = $field.find('.openalex-biblio-field-resolution-messages');
+    let $messages = $field.find('.openalex-field-resolution-messages');
 
     if (!$messages.length) {
-      $messages = $('<div class="openalex-biblio-field-resolution-messages"></div>');
+      $messages = $('<div class="openalex-field-resolution-messages"></div>');
       $field.append($messages);
     }
 
@@ -255,7 +258,7 @@ function getCandidateDisplayValue(candidates, field) {
     warnings.forEach((warning) => {
       appendPreviewFieldMessage(
         task.field,
-        warning && warning.message ? warning.message : 'Não foi possível resolver um dos valores.',
+        warning && warning.message ? warning.message : __('Could not resolve one of the values.', 'tainacan-openalex'),
         warning && warning.code === 'term_creation_forbidden' ? 'is-danger' : 'is-warning'
       );
     });
@@ -269,8 +272,8 @@ function getCandidateDisplayValue(candidates, field) {
         appendPreviewFieldMessage(
           task.field,
           createdTerms.length === 1
-            ? 'O termo “' + names[0] + '” foi criado automaticamente.'
-            : createdTerms.length + ' termos foram criados automaticamente: ' + names.join('; ') + '.',
+            ? sprintf(__('The term “%s” was created automatically.', 'tainacan-openalex'), names[0])
+            : sprintf(__('%1$d terms were created automatically: %2$s.', 'tainacan-openalex'), createdTerms.length, names.join('; ')),
           'is-success'
         );
       }
@@ -287,11 +290,11 @@ function getCandidateDisplayValue(candidates, field) {
       ? getAppliedFieldStatus()
       : getCandidateStatus(candidate);
     const valueClass = candidate.field === 'title'
-      ? 'content is-small openalex-biblio-field-value has-text-weight-semibold'
-      : 'content is-small openalex-biblio-field-value';
+      ? 'content is-small openalex-field-value has-text-weight-semibold'
+      : 'content is-small openalex-field-value';
 
     return `
-      <div class="openalex-biblio-result-field" data-field="${escapeAttr(candidate.field)}">
+      <div class="openalex-result-field" data-field="${escapeAttr(candidate.field)}">
         ${renderFieldLabelHtml(candidate.label || candidate.field, status)}
         <div class="${valueClass}">${escapeHtml(value || '—')}</div>
       </div>
@@ -299,17 +302,17 @@ function getCandidateDisplayValue(candidates, field) {
   }
 
   function updatePreviewFieldStatus(fieldKey, status) {
-    const $field = $('.openalex-biblio-confirm-modal .openalex-biblio-result-field[data-field="' + fieldKey + '"], .openalex-biblio-preview-card .openalex-biblio-result-field[data-field="' + fieldKey + '"]').first();
+    const $field = $('.openalex-confirm-modal .openalex-result-field[data-field="' + fieldKey + '"], .openalex-preview-card .openalex-result-field[data-field="' + fieldKey + '"]').first();
 
     if (!$field.length) {
       return;
     }
 
-    const $tag = $field.find('.openalex-biblio-field-status');
+    const $tag = $field.find('.openalex-field-status');
 
     if (!$tag.length) {
-      $field.find('.openalex-biblio-field-label').append(
-        '<span class="tag is-light is-small ' + status.className + ' openalex-biblio-field-status">' + escapeHtml(status.label) + '</span>'
+      $field.find('.openalex-field-label').append(
+        '<span class="tag is-light is-small ' + status.className + ' openalex-field-status">' + escapeHtml(status.label) + '</span>'
       );
       return;
     }
@@ -337,11 +340,11 @@ function getCandidateDisplayValue(candidates, field) {
 
   function renderFieldLabelHtml(label, status) {
     const statusTag = status
-      ? `<span class="tag is-light is-small ${status.className} openalex-biblio-field-status">${escapeHtml(status.label)}</span>`
+      ? `<span class="tag is-light is-small ${status.className} openalex-field-status">${escapeHtml(status.label)}</span>`
       : '';
 
     return `
-      <p class="heading openalex-biblio-field-label">
+      <p class="heading openalex-field-label">
         <strong><span>${escapeHtml(label)}</span></strong>
         ${statusTag}
       </p>
@@ -354,43 +357,43 @@ function getCandidateDisplayValue(candidates, field) {
     return [
       {
         field: 'title',
-        label: 'Título',
+        label: __('Title', 'tainacan-openalex'),
         metadatumId: map.title,
         value: normalizeText(work.title)
       },
       {
         field: 'authors',
-        label: 'Autores',
+        label: __('Authors', 'tainacan-openalex'),
         metadatumId: map.authors,
         value: authorsValues
       },
       {
         field: 'year',
-        label: 'Ano',
+        label: __('Year', 'tainacan-openalex'),
         metadatumId: map.year,
         value: normalizeText(work.year)
       },
       {
         field: 'doi',
-        label: 'DOI',
+        label: __('DOI', 'tainacan-openalex'),
         metadatumId: map.doi,
         value: normalizeText(work.doi)
       },
       {
         field: 'venue',
-        label: 'Periódico/Veículo',
+        label: __('Journal/Venue', 'tainacan-openalex'),
         metadatumId: map.venue,
         value: normalizeText(work.venue)
       },
       {
         field: 'url',
-        label: 'URL',
+        label: __('URL', 'tainacan-openalex'),
         metadatumId: map.url,
         value: normalizeText(work.url)
       },
       {
         field: 'abnt',
-        label: 'Referência ABNT',
+        label: __('ABNT reference', 'tainacan-openalex'),
         metadatumId: map.abnt,
         value: normalizeText(work.abnt || '')
       }
@@ -398,7 +401,7 @@ function getCandidateDisplayValue(candidates, field) {
   }
 
   function renderWorkPreview(candidates, appliedFields) {
-    const $preview = $('#openalex-biblio-preview');
+    const $preview = $('#openalex-preview');
 
     if (!$preview.length) {
       return;
@@ -420,15 +423,15 @@ function getCandidateDisplayValue(candidates, field) {
     ).join('');
 
     $preview.html(`
-      <div class="openalex-biblio-results-wrap openalex-biblio-preview-wrap">
-        <p class="has-text-weight-semibold openalex-biblio-results-title">Valores importados</p>
-        <div class="openalex-biblio-results-list">
-          <div class="box openalex-biblio-item openalex-biblio-preview-card">
-            <div class="openalex-biblio-result-summary">
+      <div class="openalex-results-wrap openalex-preview-wrap">
+        <p class="has-text-weight-semibold openalex-results-title">${__('Imported values', 'tainacan-openalex')}</p>
+        <div class="openalex-results-list">
+          <div class="box openalex-item openalex-preview-card">
+            <div class="openalex-result-summary">
               ${renderResultSummaryHtml(summaryWork)}
             </div>
-            <div class="openalex-biblio-result-details">
-              <div class="openalex-biblio-result-fields">
+            <div class="openalex-result-details">
+              <div class="openalex-result-fields">
                 ${fieldsHtml}
               </div>
             </div>
@@ -486,12 +489,12 @@ function normalizeMultiValue(v) {
     return fields.map((field) => {
       const value = getWorkFieldValue(work, field.key) || '—';
       const valueClass = field.key === 'title'
-        ? 'content is-small openalex-biblio-field-value has-text-weight-semibold'
-        : 'content is-small openalex-biblio-field-value';
+        ? 'content is-small openalex-field-value has-text-weight-semibold'
+        : 'content is-small openalex-field-value';
       const status = map ? getFieldStatus(work, field.key, map) : null;
 
       return `
-        <div class="openalex-biblio-result-field">
+        <div class="openalex-result-field">
           ${renderFieldLabelHtml(field.label, status)}
           <div class="${valueClass}">${escapeHtml(value)}</div>
         </div>
@@ -500,7 +503,7 @@ function normalizeMultiValue(v) {
   }
 
   function renderResultSummaryHtml(work) {
-    const title = getWorkFieldValue(work, 'title') || '(sem título)';
+    const title = getWorkFieldValue(work, 'title') || __('(untitled)', 'tainacan-openalex');
     const authors = getWorkFieldValue(work, 'authors');
     const year = getWorkFieldValue(work, 'year');
     const metaParts = [];
@@ -509,13 +512,13 @@ function normalizeMultiValue(v) {
     if (year) metaParts.push(escapeHtml(year));
 
     return `
-      <p class="has-text-weight-semibold openalex-biblio-result-title">${escapeHtml(title)}</p>
-      ${metaParts.length ? `<p class="is-size-7 openalex-biblio-result-meta">${metaParts.join(' · ')}</p>` : ''}
+      <p class="has-text-weight-semibold openalex-result-title">${escapeHtml(title)}</p>
+      ${metaParts.length ? `<p class="is-size-7 openalex-result-meta">${metaParts.join(' · ')}</p>` : ''}
     `;
   }
 
   function renderResultCard(work, map) {
-    const title = getWorkFieldValue(work, 'title') || '(sem título)';
+    const title = getWorkFieldValue(work, 'title') || __('(untitled)', 'tainacan-openalex');
     const authors = getWorkFieldValue(work, 'authors');
     const year = getWorkFieldValue(work, 'year');
     const metaParts = [];
@@ -526,45 +529,45 @@ function normalizeMultiValue(v) {
     return `
       <button
         type="button"
-        class="openalex-biblio-suggestion"
+        class="openalex-suggestion"
         data-id="${escapeAttr(work.id)}"
         role="option"
-        aria-label="Selecionar ${escapeAttr(title)}"
+        aria-label="${escapeAttr(sprintf(__('Select %s', 'tainacan-openalex'), title))}"
       >
-        <span class="openalex-biblio-suggestion-copy">
-          <span class="openalex-biblio-suggestion-title">${escapeHtml(title)}</span>
-          ${metaParts.length ? `<span class="openalex-biblio-suggestion-meta">${metaParts.join(' · ')}</span>` : ''}
+        <span class="openalex-suggestion-copy">
+          <span class="openalex-suggestion-title">${escapeHtml(title)}</span>
+          ${metaParts.length ? `<span class="openalex-suggestion-meta">${metaParts.join(' · ')}</span>` : ''}
         </span>
-        <span class="openalex-biblio-suggestion-action">Selecionar</span>
+        <span class="openalex-suggestion-action">${__('Select', 'tainacan-openalex')}</span>
       </button>
     `;
   }
 
 
   function getSearchType() {
-    return ($('#openalex-biblio-search-type').val() || 'free').trim();
+    return ($('#openalex-search-type').val() || 'free').trim();
   }
 
   function syncPlaceholder() {
     const type = getSearchType();
-    $('#openalex-biblio-query').attr('placeholder', SEARCH_PLACEHOLDERS[type] || SEARCH_PLACEHOLDERS.free);
+    $('#openalex-query').attr('placeholder', SEARCH_PLACEHOLDERS[type] || SEARCH_PLACEHOLDERS.free);
   }
 
   function hideSearchResults() {
-    $('#openalex-biblio-results').empty();
-    $('#openalex-biblio-results-wrap').addClass('is-hidden');
-    $('#openalex-biblio-query').attr('aria-expanded', 'false');
+    $('#openalex-results').empty();
+    $('#openalex-results-wrap').addClass('is-hidden');
+    $('#openalex-query').attr('aria-expanded', 'false');
   }
 
   function renderResults(items, map) {
-    const $container = $('#openalex-biblio-results');
-    const $wrap = $('#openalex-biblio-results-wrap');
+    const $container = $('#openalex-results');
+    const $wrap = $('#openalex-results-wrap');
 
     $container.empty();
 
     if (!items || !items.length) {
       $container.append(
-        '<div class="openalex-biblio-empty-result" role="option" aria-disabled="true">Nenhum resultado encontrado.</div>'
+        '<div class="openalex-empty-result" role="option" aria-disabled="true">' + __('No results found.', 'tainacan-openalex') + '</div>'
       );
     } else {
       items.forEach((it) => {
@@ -573,7 +576,7 @@ function normalizeMultiValue(v) {
     }
 
     $wrap.removeClass('is-hidden');
-    $('#openalex-biblio-query').attr('aria-expanded', 'true');
+    $('#openalex-query').attr('aria-expanded', 'true');
   }
 
   // =========================
@@ -581,9 +584,9 @@ function normalizeMultiValue(v) {
   // =========================
   function ajaxPost(action, data) {
     const ajaxUrl =
-      (window.tainacanOpenAlexBiblio && window.tainacanOpenAlexBiblio.ajaxurl) ||
+      (window.tainacanOpenAlex && window.tainacanOpenAlex.ajaxurl) ||
       (typeof ajaxurl !== 'undefined' ? ajaxurl : '');
-    const nonce = (window.tainacanOpenAlexBiblio && window.tainacanOpenAlexBiblio.nonce) || '';
+    const nonce = (window.tainacanOpenAlex && window.tainacanOpenAlex.nonce) || '';
     return $.post(ajaxUrl, Object.assign({ action, nonce }, data || {}));
   }
 
@@ -593,7 +596,7 @@ function normalizeMultiValue(v) {
   // Modal de confirmação
   // =========================
   function setModalStatus(html, isError, requestedTone) {
-    const $status = $('#openalex-biblio-modal-status');
+    const $status = $('#openalex-modal-status');
 
     if (!$status.length) return;
     if (!html) { $status.empty(); return; }
@@ -604,7 +607,7 @@ function normalizeMultiValue(v) {
       : (isError ? 'is-danger' : 'is-primary');
 
     $status.html(
-      `<div class="notification ${tone} is-light is-size-7 openalex-biblio-modal-status-message">${html}</div>`
+      `<div class="notification ${tone} is-light is-size-7 openalex-modal-status-message">${html}</div>`
     );
   }
 
@@ -635,22 +638,22 @@ function normalizeMultiValue(v) {
     root.__openalexHadIsClipped = document.documentElement.classList.contains('is-clipped');
 
     root.innerHTML = `
-      <div class="openalex-biblio-confirm-modal">
-        <div class="openalex-biblio-confirm-backdrop"></div>
-        <aside class="openalex-biblio-confirm-panel" role="dialog" aria-modal="true" aria-labelledby="openalex-biblio-modal-title">
-          <header class="openalex-biblio-confirm-header">
-            <div class="openalex-biblio-confirm-heading">
-              <span class="openalex-biblio-confirm-kicker">OpenAlex</span>
-              <h2 id="openalex-biblio-modal-title">Confirmar preenchimento</h2>
+      <div class="openalex-confirm-modal">
+        <div class="openalex-confirm-backdrop"></div>
+        <aside class="openalex-confirm-panel" role="dialog" aria-modal="true" aria-labelledby="openalex-modal-title">
+          <header class="openalex-confirm-header">
+            <div class="openalex-confirm-heading">
+              <span class="openalex-confirm-kicker">OpenAlex</span>
+              <h2 id="openalex-modal-title">${__('Confirm fill', 'tainacan-openalex')}</h2>
             </div>
-            <button type="button" class="openalex-biblio-confirm-close openalex-biblio-modal-close" aria-label="Fechar">
+            <button type="button" class="openalex-confirm-close openalex-modal-close" aria-label="${__('Close', 'tainacan-openalex')}">
               <span aria-hidden="true">×</span>
             </button>
           </header>
-          <section class="openalex-biblio-confirm-body">
-            <div class="openalex-biblio-modal-loading">
+          <section class="openalex-confirm-body">
+            <div class="openalex-modal-loading">
               <button type="button" class="button is-loading" aria-hidden="true" tabindex="-1"></button>
-              <span>Carregando os detalhes da referência...</span>
+              <span>${__('Loading reference details...', 'tainacan-openalex')}</span>
             </div>
           </section>
         </aside>
@@ -688,44 +691,43 @@ function normalizeMultiValue(v) {
     root.__openalexFilling = false;
 
     root.innerHTML = `
-      <div class="openalex-biblio-confirm-modal">
-        <div class="openalex-biblio-confirm-backdrop openalex-biblio-modal-close"></div>
-        <aside class="openalex-biblio-confirm-panel" role="dialog" aria-modal="true" aria-labelledby="openalex-biblio-modal-title">
-          <header class="openalex-biblio-confirm-header">
-            <div class="openalex-biblio-confirm-heading">
-              <span class="openalex-biblio-confirm-kicker">OpenAlex</span>
-              <h2 id="openalex-biblio-modal-title">Confirmar preenchimento</h2>
+      <div class="openalex-confirm-modal">
+        <div class="openalex-confirm-backdrop openalex-modal-close"></div>
+        <aside class="openalex-confirm-panel" role="dialog" aria-modal="true" aria-labelledby="openalex-modal-title">
+          <header class="openalex-confirm-header">
+            <div class="openalex-confirm-heading">
+              <span class="openalex-confirm-kicker">OpenAlex</span>
+              <h2 id="openalex-modal-title">${__('Confirm fill', 'tainacan-openalex')}</h2>
             </div>
-            <button type="button" class="openalex-biblio-confirm-close openalex-biblio-modal-close" aria-label="Fechar">
+            <button type="button" class="openalex-confirm-close openalex-modal-close" aria-label="${__('Close', 'tainacan-openalex')}">
               <span aria-hidden="true">×</span>
             </button>
           </header>
 
-          <section class="openalex-biblio-confirm-body">
-            <div class="notification is-primary is-light is-size-7 openalex-biblio-confirm-note">
-              Confira os dados antes de continuar. Ao confirmar, os metadados mapeados serão preenchidos
-              com os valores do OpenAlex e valores existentes nesses campos poderão ser substituídos.
+          <section class="openalex-confirm-body">
+            <div class="notification is-primary is-light is-size-7 openalex-confirm-note">
+${__('Review the data before continuing. Confirming will fill the mapped metadata with OpenAlex values and may replace existing values in those fields.', 'tainacan-openalex')}
             </div>
 
-            <div id="openalex-biblio-modal-status"></div>
+            <div id="openalex-modal-status"></div>
 
-            <div class="openalex-biblio-modal-work-summary">
+            <div class="openalex-modal-work-summary">
               ${renderResultSummaryHtml(work || {})}
             </div>
 
-            <div class="openalex-biblio-result-fields openalex-biblio-modal-fields">
+            <div class="openalex-result-fields openalex-modal-fields">
               ${fieldsHtml}
             </div>
           </section>
 
-          <footer class="openalex-biblio-confirm-footer openalex-biblio-modal-actions">
-            <button type="button" class="button openalex-biblio-modal-close">Cancelar</button>
+          <footer class="openalex-confirm-footer openalex-modal-actions">
+            <button type="button" class="button openalex-modal-close">${__('Cancel', 'tainacan-openalex')}</button>
             <button
               type="button"
-              class="button is-primary openalex-biblio-confirm-fill"
+              class="button is-primary openalex-confirm-fill"
               ${tasks.length ? '' : 'disabled'}
             >
-              Preencher metadados
+              ${__('Fill metadata', 'tainacan-openalex')}
             </button>
           </footer>
         </aside>
@@ -735,7 +737,7 @@ function normalizeMultiValue(v) {
     document.documentElement.classList.add('is-clipped');
 
     if (!tasks.length) {
-      setModalStatus('Nenhum campo mapeado com valor disponível para preencher.', true, 'is-warning');
+      setModalStatus(__('No mapped field has a value available to fill.', 'tainacan-openalex'), true, 'is-warning');
     }
   }
 
@@ -743,8 +745,8 @@ function normalizeMultiValue(v) {
     const root = getConfirmationModalRoot();
     if (root) root.__openalexFilling = !!isBusy;
 
-    const $confirm = $('.openalex-biblio-confirm-fill');
-    const $closeButtons = $('.openalex-biblio-confirm-modal .openalex-biblio-modal-close');
+    const $confirm = $('.openalex-confirm-fill');
+    const $closeButtons = $('.openalex-confirm-modal .openalex-modal-close');
 
     $confirm.toggleClass('is-loading', !!isBusy).prop('disabled', !!isBusy);
     $closeButtons.prop('disabled', !!isBusy);
@@ -975,7 +977,7 @@ async function resolveMetadataValues(itemId, task) {
   );
 
   if (!response || !response.success) {
-    const failure = response || new Error('Resposta inválida ao resolver o metadado.');
+    const failure = response || new Error(__('Invalid response while resolving the metadatum.', 'tainacan-openalex'));
     throw failure;
   }
 
@@ -1066,7 +1068,7 @@ function createEmptyQueueResult() {
 }
 
 async function fillQueue(tasks) {
-  console.group('[OpenAlexBiblio][DEBUG] fillQueue REST');
+  console.group('[OpenAlex][DEBUG] fillQueue REST');
 
   log('[DEBUG] tasks recebidas:', tasks);
 
@@ -1079,14 +1081,14 @@ async function fillQueue(tasks) {
     console.groupEnd();
 
     setStatus(
-      'Não foi possível identificar o item atual para salvar os metadados via API.',
+      __('Could not identify the current item in order to save metadata via the API.', 'tainacan-openalex'),
       true
     );
 
     result.failed = Array.isArray(tasks) ? tasks.length : 1;
     result.failedTasks.push({
       reason: 'item_id_not_found',
-      message: 'Não foi possível identificar o item atual.'
+      message: __('Could not identify the current item.', 'tainacan-openalex')
     });
     return result;
   }
@@ -1095,14 +1097,14 @@ async function fillQueue(tasks) {
     console.groupEnd();
 
     setStatus(
-      'A API REST do WordPress não está disponível nesta tela.',
+      __('The WordPress REST API is not available on this screen.', 'tainacan-openalex'),
       true
     );
 
     result.failed = Array.isArray(tasks) ? tasks.length : 1;
     result.failedTasks.push({
       reason: 'wp_api_fetch_unavailable',
-      message: 'A API REST do WordPress não está disponível.'
+      message: __('The WordPress REST API is not available.', 'tainacan-openalex')
     });
     return result;
   }
@@ -1137,7 +1139,7 @@ async function fillQueue(tasks) {
       });
 
       updatePreviewFieldStatus(field, getFailedFieldStatus());
-      appendPreviewFieldMessage(field, 'O metadado configurado possui um ID inválido.', 'is-danger');
+      appendPreviewFieldMessage(field, __('The configured metadatum has an invalid ID.', 'tainacan-openalex'), 'is-danger');
       continue;
     }
 
@@ -1163,7 +1165,7 @@ async function fillQueue(tasks) {
     } catch (resolutionError) {
       const message = getAjaxErrorMessage(
         resolutionError,
-        'Não foi possível resolver os valores deste metadado.'
+        __('Could not resolve the values for this metadatum.', 'tainacan-openalex')
       );
 
       result.failed++;
@@ -1220,7 +1222,7 @@ async function fillQueue(tasks) {
       if (!warnings.length) {
         appendPreviewFieldMessage(
           field,
-          'Nenhum valor válido pôde ser resolvido para este metadado.',
+          __('No valid value could be resolved for this metadatum.', 'tainacan-openalex'),
           'is-danger'
         );
       }
@@ -1274,7 +1276,7 @@ async function fillQueue(tasks) {
     } catch (saveError) {
       const message = getAjaxErrorMessage(
         saveError,
-        'Os valores foram resolvidos, mas o metadado não pôde ser atualizado.'
+        __('The values were resolved, but the metadatum could not be updated.', 'tainacan-openalex')
       );
 
       result.failed++;
@@ -1319,31 +1321,31 @@ function buildQueueSummary(result) {
   const parts = [];
 
   if (result.applied > 0) {
-    parts.push(pluralizeQueueCount(result.applied, 'metadado preenchido', 'metadados preenchidos'));
+    parts.push(pluralizeQueueCount(result.applied, __('metadatum filled', 'tainacan-openalex'), __('metadata filled', 'tainacan-openalex')));
   }
 
   if (result.partial > 0) {
-    parts.push(pluralizeQueueCount(result.partial, 'metadado parcialmente preenchido', 'metadados parcialmente preenchidos'));
+    parts.push(pluralizeQueueCount(result.partial, __('metadatum partially filled', 'tainacan-openalex'), __('metadata partially filled', 'tainacan-openalex')));
   }
 
   if (result.failed > 0) {
-    parts.push(pluralizeQueueCount(result.failed, 'metadado com falha', 'metadados com falha'));
+    parts.push(pluralizeQueueCount(result.failed, __('metadatum failed', 'tainacan-openalex'), __('metadata failed', 'tainacan-openalex')));
   }
 
   if (result.skipped > 0) {
-    parts.push(pluralizeQueueCount(result.skipped, 'metadado ignorado', 'metadados ignorados'));
+    parts.push(pluralizeQueueCount(result.skipped, __('metadatum skipped', 'tainacan-openalex'), __('metadata skipped', 'tainacan-openalex')));
   }
 
   if (!parts.length) {
-    return 'Nenhum metadado foi processado.';
+    return __('No metadata was processed.', 'tainacan-openalex');
   }
 
   const summary = parts.join(', ') + '.';
   const needsReview = result.partial > 0 || result.failed > 0 || result.warnings.length > 0;
 
   return needsReview
-    ? summary + ' Revise os avisos exibidos na janela de confirmação.'
-    : summary + ' Preenchimento concluído.';
+    ? summary + ' ' + __('Review the notices shown in the confirmation window.', 'tainacan-openalex')
+    : summary + ' ' + __('Fill completed.', 'tainacan-openalex');
 }
 
 // fim issue 15
@@ -1376,7 +1378,7 @@ function buildQueueSummary(result) {
 
       const resp = await ajaxPost('tainacan_openalex_work_get', { id: openalexId });
       if (!resp || !resp.success) {
-        throw resp || new Error('Erro ao obter detalhes do OpenAlex.');
+        throw resp || new Error(__('Could not fetch details from OpenAlex.', 'tainacan-openalex'));
       }
 
       const work = (resp.data && resp.data.work) ? resp.data.work : {};
@@ -1400,7 +1402,7 @@ function buildQueueSummary(result) {
     } catch (xhr) {
       const message = getAjaxErrorMessage(
         xhr,
-        'Não foi possível carregar os detalhes da referência selecionada.'
+        __('Could not load details for the selected reference.', 'tainacan-openalex')
       );
 
       closeConfirmationModal(true);
@@ -1416,24 +1418,24 @@ function buildQueueSummary(result) {
   // =========================
   // UI events
   // =========================
-  $(document).on('change', '#openalex-biblio-search-type', function () {
+  $(document).on('change', '#openalex-search-type', function () {
     syncPlaceholder();
     hideSearchResults();
   });
 
-  $(document).on('click', '#openalex-biblio-search', function () {
+  $(document).on('click', '#openalex-search', function () {
     const $btn = $(this);
-    const q = ($('#openalex-biblio-query').val() || '').trim();
+    const q = ($('#openalex-query').val() || '').trim();
     const searchType = getSearchType();
 
     if (!q) {
       hideSearchResults();
-      setStatus('Digite algo para buscar.', true);
+      setStatus(__('Enter something to search.', 'tainacan-openalex'), true);
       return;
     }
 
     hideSearchResults();
-    setStatus('Buscando no OpenAlex...', false);
+    setStatus(__('Searching OpenAlex...', 'tainacan-openalex'), false);
     $btn.addClass('is-loading').prop('disabled', true);
 
     const finishSearch = function () {
@@ -1443,7 +1445,7 @@ function buildQueueSummary(result) {
     ajaxPost('tainacan_openalex_work_search', { q, search_type: searchType })
       .done(function (resp) {
         if (!resp || !resp.success) {
-          const msg = (resp && resp.data && resp.data.message) ? resp.data.message : 'Falha na busca.';
+          const msg = (resp && resp.data && resp.data.message) ? resp.data.message : __('Search failed.', 'tainacan-openalex');
           setStatus(msg, true);
           err('resp', resp);
           finishSearch();
@@ -1456,7 +1458,7 @@ function buildQueueSummary(result) {
             renderResults((resp.data && resp.data.results) || [], map);
           })
           .catch(function (mapResp) {
-            setStatus('Falha ao carregar mapeamento.', true);
+            setStatus(__('Failed to load the mapping.', 'tainacan-openalex'), true);
             err('mapResp', mapResp);
             renderResults((resp.data && resp.data.results) || [], null);
           })
@@ -1465,7 +1467,7 @@ function buildQueueSummary(result) {
       .fail(function (xhr) {
         const msg = xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message
           ? xhr.responseJSON.data.message
-          : 'Erro na busca (AJAX).';
+          : __('Search request failed.', 'tainacan-openalex');
         hideSearchResults();
         setStatus(msg, true);
         err('xhr', xhr);
@@ -1473,17 +1475,17 @@ function buildQueueSummary(result) {
       });
   });
 
-  $(document).on('keydown', '#openalex-biblio-query', function (e) {
+  $(document).on('keydown', '#openalex-query', function (e) {
     if (e.key === 'Enter') {
       e.preventDefault();
-      $('#openalex-biblio-search').trigger('click');
+      $('#openalex-search').trigger('click');
       return;
     }
 
     if (e.key === 'Escape') hideSearchResults();
   });
 
-  $(document).on('click', '.openalex-biblio-suggestion', function (e) {
+  $(document).on('click', '.openalex-suggestion', function (e) {
     e.preventDefault();
     const $button = $(this);
     const openalexId = $button.data('id');
@@ -1492,24 +1494,24 @@ function buildQueueSummary(result) {
     fillWorkFromOpenAlex(openalexId, $button);
   });
 
-  $(document).on('click', '.openalex-biblio-modal-close', function (e) {
+  $(document).on('click', '.openalex-modal-close', function (e) {
     e.preventDefault();
     closeConfirmationModal(false);
   });
 
-  $(document).on('click', '.openalex-biblio-confirm-fill', async function (e) {
+  $(document).on('click', '.openalex-confirm-fill', async function (e) {
     e.preventDefault();
 
     const root = getConfirmationModalRoot();
     const tasks = root && Array.isArray(root.__openalexTasks) ? root.__openalexTasks : [];
 
     if (!tasks.length) {
-      setModalStatus('Nenhum metadado mapeado com valor disponível para preencher.', true, 'is-warning');
+      setModalStatus(__('No mapped metadatum has a value available to fill.', 'tainacan-openalex'), true, 'is-warning');
       return;
     }
 
     setConfirmationBusy(true);
-    setModalStatus('Preenchendo os metadados no Tainacan...', false, 'is-primary');
+    setModalStatus(__('Filling metadata in Tainacan...', 'tainacan-openalex'), false, 'is-primary');
 
     let queueResult = createEmptyQueueResult();
     try {
@@ -1534,25 +1536,25 @@ function buildQueueSummary(result) {
 
     if (successfulCount > 0) {
       setModalStatus(summary, false, 'is-warning');
-      setStatus('A importação foi concluída com avisos. Revise os detalhes na janela de confirmação.', false, 'is-warning');
+      setStatus(__('The import finished with warnings. Review the details in the confirmation window.', 'tainacan-openalex'), false, 'is-warning');
     } else {
       setModalStatus(summary, true, 'is-danger');
-      setStatus('Não foi possível preencher os metadados selecionados.', true, 'is-danger');
+      setStatus(__('Could not fill the selected metadata.', 'tainacan-openalex'), true, 'is-danger');
     }
   });
 
   $(document).on('click', function (e) {
     const $target = $(e.target);
     if (
-      !$target.closest('.openalex-biblio-search-shell').length &&
-      !$target.closest('.openalex-biblio-confirm-modal').length
+      !$target.closest('.openalex-search-shell').length &&
+      !$target.closest('.openalex-confirm-modal').length
     ) {
       hideSearchResults();
     }
   });
 
   $(document).on('keydown', function (e) {
-    if (e.key === 'Escape' && $('.openalex-biblio-confirm-modal').length) {
+    if (e.key === 'Escape' && $('.openalex-confirm-modal').length) {
       closeConfirmationModal(false);
     }
   });
