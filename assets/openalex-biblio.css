@@ -1,3 +1,125 @@
+/*
+ * Issue #19 (v2) — keep the OpenAlex UI readable even when Bulma auto-switches
+ * to dark mode through prefers-color-scheme.
+ *
+ * Root cause:
+ * - the previous fix forced light surfaces;
+ * - some text tokens (labels, muted/meta text, content blocks) were still inheriting
+ *   Bulma dark-mode foreground colors/variables, which reduced contrast on white cards.
+ *
+ * Strategy:
+ * - keep the component in light mode;
+ * - force readable foreground colors for the preview/result areas;
+ * - keep tags/notifications with enough contrast.
+ */
+
+.openalex-biblio-hook {
+  color-scheme: light;
+  --openalex-surface: #ffffff;
+  --openalex-surface-soft: #f7f7f8;
+  --openalex-text: #243342;
+  --openalex-text-strong: #1f2937;
+  --openalex-text-muted: #5b6673;
+  --openalex-border: #d9dee5;
+  --openalex-link: #0b5cad;
+  --openalex-link-hover: #084785;
+  --openalex-tag-bg: #dff3ef;
+  --openalex-tag-text: #1f4d45;
+  --openalex-note-bg: #d9f0eb;
+  --openalex-note-text: #1f2937;
+}
+
+/* Surfaces */
+.openalex-biblio-hook .box,
+.openalex-biblio-hook .card,
+.openalex-biblio-hook .openalex-biblio-box,
+.openalex-biblio-hook .openalex-biblio-preview-card,
+.openalex-biblio-hook .openalex-biblio-item {
+  --bulma-box-background-color: var(--openalex-surface);
+  --bulma-box-color: var(--openalex-text);
+  --bulma-card-background-color: var(--openalex-surface);
+  --bulma-card-color: var(--openalex-text);
+  background-color: var(--openalex-surface) !important;
+  color: var(--openalex-text) !important;
+}
+
+/* Main text areas inside the imported-values preview */
+.openalex-biblio-hook .openalex-biblio-preview-wrap,
+.openalex-biblio-hook .openalex-biblio-results-wrap,
+.openalex-biblio-hook .openalex-biblio-result-details,
+.openalex-biblio-hook .openalex-biblio-result-fields,
+.openalex-biblio-hook .openalex-biblio-result-summary,
+.openalex-biblio-hook .openalex-biblio-field-value,
+.openalex-biblio-hook .openalex-biblio-field-value *,
+.openalex-biblio-hook .openalex-biblio-result-title,
+.openalex-biblio-hook .openalex-biblio-result-title *,
+.openalex-biblio-hook .openalex-biblio-result-meta,
+.openalex-biblio-hook .openalex-biblio-result-meta *,
+.openalex-biblio-hook .openalex-biblio-result-field .content,
+.openalex-biblio-hook .openalex-biblio-result-field .content *,
+.openalex-biblio-hook .content,
+.openalex-biblio-hook .content *,
+.openalex-biblio-hook p,
+.openalex-biblio-hook strong,
+.openalex-biblio-hook li {
+  color: var(--openalex-text) !important;
+}
+
+/* Field labels were the main readability problem in dark mode */
+.openalex-biblio-hook .label,
+.openalex-biblio-hook .openalex-biblio-field-label,
+.openalex-biblio-hook .openalex-biblio-field-label *,
+.openalex-biblio-hook .openalex-biblio-results-title,
+.openalex-biblio-hook .openalex-biblio-results-title * {
+  color: var(--openalex-text-strong) !important;
+  font-weight: 600;
+}
+
+/* Secondary/meta text */
+.openalex-biblio-hook .help,
+.openalex-biblio-hook .is-size-7,
+.openalex-biblio-hook .has-text-grey,
+.openalex-biblio-hook .has-text-grey-light,
+.openalex-biblio-hook .has-text-grey-dark {
+  color: var(--openalex-text-muted) !important;
+}
+
+/* Links */
+.openalex-biblio-hook a {
+  color: var(--openalex-link) !important;
+}
+
+.openalex-biblio-hook a:hover,
+.openalex-biblio-hook a:focus {
+  color: var(--openalex-link-hover) !important;
+}
+
+/* Tags/badges like "Preenchido", "Valor vazio", etc. */
+.openalex-biblio-hook .tag,
+.openalex-biblio-hook .openalex-biblio-field-status {
+  background-color: var(--openalex-tag-bg) !important;
+  color: var(--openalex-tag-text) !important;
+  border: 0;
+  font-size: 0.625rem;
+  height: auto;
+  padding: 0.1rem 0.4rem;
+}
+
+/* Notifications/info boxes */
+.openalex-biblio-hook .notification,
+.openalex-biblio-hook .message,
+.openalex-biblio-hook .message-body,
+.openalex-biblio-hook .openalex-biblio-resolved-info {
+  background-color: var(--openalex-note-bg) !important;
+  color: var(--openalex-note-text) !important;
+}
+
+/* Dividers/borders */
+.openalex-biblio-hook hr,
+.openalex-biblio-hook .openalex-biblio-result-details {
+  border-color: var(--openalex-border) !important;
+}
+
 .openalex-biblio-box {
   margin-bottom: 0;
 }
@@ -34,7 +156,7 @@
 
 .openalex-biblio-result-details {
   padding-top: 0.5rem;
-  border-top: 1px solid var(--bulma-border, #dbdbdb);
+  border-top: 1px solid var(--openalex-border);
 }
 
 .openalex-biblio-item .openalex-biblio-result-details {
@@ -61,12 +183,6 @@
   gap: 0.35rem;
   flex-wrap: wrap;
   margin-bottom: 0.25rem;
-}
-
-.openalex-biblio-field-status {
-  font-size: 0.625rem;
-  height: auto;
-  padding: 0.1rem 0.4rem;
 }
 
 .openalex-biblio-field-value {
