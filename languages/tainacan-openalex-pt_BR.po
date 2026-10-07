@@ -1,0 +1,597 @@
+msgid ""
+msgstr "Project-Id-Version: Tainacan OpenAlex 0.4.3\nReport-Msgid-Bugs-To: https://github.com/tainacan/tainacan-openalex\nPOT-Creation-Date: 2026-10-07 10:20-0300\nPO-Revision-Date: 2026-10-07 10:20-0300\nLast-Translator: Tainacan\nLanguage-Team: Portuguese (Brazil)\nLanguage: pt_BR\nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\nPlural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: build/index.js
+msgid "%1$d terms were created automatically: %2$s."
+msgstr "%1$d termos foram criados automaticamente: %2$s."
+
+#: build/index.js
+msgid "(untitled)"
+msgstr "(sem título)"
+
+#: build/index.js
+#: tainacan-openalex.php
+msgid "ABNT reference"
+msgstr "Referência ABNT"
+
+#: build/index.js
+msgid "Author"
+msgstr "Autor"
+
+#: build/index.js
+#: tainacan-openalex.php
+msgid "Authors"
+msgstr "Autores"
+
+#: build/index.js
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: build/index.js
+msgid "Close"
+msgstr "Fechar"
+
+#: tainacan-openalex.php
+msgid "Configure the references collection and the field mapping (OpenAlex → metadata)."
+msgstr "Configure a coleção de referências e o mapeamento dos campos (OpenAlex → metadados)."
+
+#: build/index.js
+msgid "Confirm fill"
+msgstr "Confirmar preenchimento"
+
+#: tainacan-openalex.php
+msgid "Could not create the term “%1$s” in the “%2$s” taxonomy."
+msgstr "Não foi possível criar o termo “%1$s” na taxonomia “%2$s”."
+
+#: build/index.js
+msgid "Could not fetch details from OpenAlex."
+msgstr "Não foi possível obter os detalhes no OpenAlex."
+
+#: tainacan-openalex.php
+msgid "Could not fetch work details from OpenAlex."
+msgstr "Não foi possível obter os detalhes da obra no OpenAlex."
+
+#: build/index.js
+msgid "Could not fill the selected metadata."
+msgstr "Não foi possível preencher os metadados selecionados."
+
+#: build/index.js
+msgid "Could not identify the current item in order to save metadata via the API."
+msgstr "Não foi possível identificar o item atual para salvar os metadados via API."
+
+#: build/index.js
+msgid "Could not identify the current item."
+msgstr "Não foi possível identificar o item atual."
+
+#: build/index.js
+msgid "Could not load details for the selected reference."
+msgstr "Não foi possível carregar os detalhes da referência selecionada."
+
+#: tainacan-openalex.php
+msgid "Could not look up the term “%1$s” in the “%2$s” taxonomy."
+msgstr "Não foi possível procurar o termo “%1$s” na taxonomia “%2$s”."
+
+#: build/index.js
+msgid "Could not resolve one of the values."
+msgstr "Não foi possível resolver um dos valores."
+
+#: tainacan-openalex.php
+msgid "Could not resolve the author ID."
+msgstr "Não foi possível resolver o ID do autor."
+
+#: tainacan-openalex.php
+msgid "Could not resolve the source from the ISSN."
+msgstr "Não foi possível resolver a fonte a partir do ISSN."
+
+#: build/index.js
+msgid "Could not resolve the values for this metadatum."
+msgstr "Não foi possível resolver os valores deste metadado."
+
+#: build/index.js
+msgid "Created term"
+msgstr "Termo criado"
+
+#: build/index.js
+msgid "Created terms"
+msgstr "Termos criados"
+
+#: tainacan-openalex.php
+msgid "Creating the term “%1$s” in the “%2$s” taxonomy did not return a valid ID."
+msgstr "A criação do termo “%1$s” na taxonomia “%2$s” não retornou um ID válido."
+
+#: build/index.js
+#: tainacan-openalex.php
+msgid "DOI"
+msgstr "DOI"
+
+#: tainacan-openalex.php
+msgid "DOI resolved successfully."
+msgstr "DOI resolvido com sucesso."
+
+#: build/index.js
+msgid "E.g. 0028-0846"
+msgstr "Ex.: 0028-0846"
+
+#: build/index.js
+msgid "E.g. 10.1038/s41586-020-2649-2"
+msgstr "Ex.: 10.1038/s41586-020-2649-2"
+
+#: build/index.js
+msgid "E.g. Ann Cavoukian"
+msgstr "Ex.: Ann Cavoukian"
+
+#: build/index.js
+msgid "E.g. Privacy by Design in Information Systems"
+msgstr "Ex.: Privacy by Design in Information Systems"
+
+#: build/index.js
+msgid "E.g. privacy by design, machine learning"
+msgstr "Ex.: privacy by design, machine learning"
+
+#: tainacan-openalex.php
+msgid "Empty ID."
+msgstr "ID vazio."
+
+#: tainacan-openalex.php
+msgid "Empty or invalid work ID."
+msgstr "ID da obra vazio ou inválido."
+
+#: tainacan-openalex.php
+msgid "Empty query."
+msgstr "Consulta vazia."
+
+#: build/index.js
+msgid "Empty value"
+msgstr "Valor vazio"
+
+#: build/index.js
+msgid "Enter something to search."
+msgstr "Digite algo para buscar."
+
+#: build/index.js
+msgid "Existing term"
+msgstr "Termo existente"
+
+#: build/index.js
+msgid "Existing terms"
+msgstr "Termos existentes"
+
+#: build/index.js
+msgid "Failed"
+msgstr "Falhou"
+
+#: build/index.js
+msgid "Failed to load the mapping."
+msgstr "Falha ao carregar o mapeamento."
+
+#: tainacan-openalex.php
+msgid "Fill bibliography"
+msgstr "Preencher bibliografia"
+
+#: build/index.js
+msgid "Fill completed."
+msgstr "Preenchimento concluído."
+
+#: build/index.js
+msgid "Fill metadata"
+msgstr "Preencher metadados"
+
+#: build/index.js
+msgid "Filled"
+msgstr "Preenchido"
+
+#: build/index.js
+msgid "Filling metadata in Tainacan..."
+msgstr "Preenchendo os metadados no Tainacan..."
+
+#: build/index.js
+msgid "Free search"
+msgstr "Busca livre"
+
+#: tainacan-openalex.php
+msgid "Free search completed."
+msgstr "Busca livre concluída."
+
+#: tainacan-openalex.php
+msgid "ID %d"
+msgstr "ID %d"
+
+#: tainacan-openalex.php
+msgid "If you have an API key, enter it here. Otherwise, leave this empty."
+msgstr "Se você tiver uma chave de API, informe aqui. Caso contrário, deixe em branco."
+
+#: build/index.js
+msgid "Imported values"
+msgstr "Valores importados"
+
+#: tainacan-openalex.php
+msgid "Invalid DOI."
+msgstr "DOI inválido."
+
+#: tainacan-openalex.php
+msgid "Invalid ISSN."
+msgstr "ISSN inválido."
+
+#: tainacan-openalex.php
+msgid "Invalid JSON response from OpenAlex."
+msgstr "Resposta JSON inválida do OpenAlex."
+
+#: tainacan-openalex.php
+msgid "Invalid response from OpenAlex."
+msgstr "Resposta inválida do OpenAlex."
+
+#: build/index.js
+msgid "Invalid response while resolving the metadatum."
+msgstr "Resposta inválida ao resolver o metadado."
+
+#: build/index.js
+#: tainacan-openalex.php
+msgid "Journal/Venue"
+msgstr "Periódico/Veículo"
+
+#: build/index.js
+msgid "Loading reference details..."
+msgstr "Carregando os detalhes da referência..."
+
+#: build/index.js
+msgid "Mapped"
+msgstr "Mapeado"
+
+#: tainacan-openalex.php
+msgid "Mapping: ABNT reference → metadatum"
+msgstr "Mapeamento: Referência ABNT → metadado"
+
+#: tainacan-openalex.php
+msgid "Mapping: Authors → metadatum"
+msgstr "Mapeamento: Autores → metadado"
+
+#: tainacan-openalex.php
+msgid "Mapping: DOI → metadatum"
+msgstr "Mapeamento: DOI → metadado"
+
+#: tainacan-openalex.php
+msgid "Mapping: Journal/Venue → metadatum"
+msgstr "Mapeamento: Periódico/Veículo → metadado"
+
+#: tainacan-openalex.php
+msgid "Mapping: Title → metadatum"
+msgstr "Mapeamento: Título → metadado"
+
+#: tainacan-openalex.php
+msgid "Mapping: URL → metadatum"
+msgstr "Mapeamento: URL → metadado"
+
+#: tainacan-openalex.php
+msgid "Mapping: Year → metadatum"
+msgstr "Mapeamento: Ano → metadado"
+
+#: tainacan-openalex.php
+msgid "No author found."
+msgstr "Nenhum autor encontrado."
+
+#: build/index.js
+msgid "No mapped field has a value available to fill."
+msgstr "Nenhum campo mapeado tem um valor disponível para preenchimento."
+
+#: build/index.js
+msgid "No mapped metadatum has a value available to fill."
+msgstr "Nenhum metadado mapeado tem um valor disponível para preenchimento."
+
+#: build/index.js
+msgid "No metadata was processed."
+msgstr "Nenhum metadado foi processado."
+
+#: build/index.js
+msgid "No permission"
+msgstr "Sem permissão"
+
+#: build/index.js
+msgid "No results found."
+msgstr "Nenhum resultado encontrado."
+
+#: build/index.js
+msgid "No valid value could be resolved for this metadatum."
+msgstr "Nenhum valor válido pôde ser resolvido para este metadado."
+
+#: tainacan-openalex.php
+msgid "No valid value was received."
+msgstr "Nenhum valor válido foi recebido."
+
+#: build/index.js
+msgid "Not found"
+msgstr "Não encontrado"
+
+#: build/index.js
+msgid "Not mapped"
+msgstr "Não mapeado"
+
+#: tainacan-openalex.php
+msgid "OpenAlex"
+msgstr "OpenAlex"
+
+#: tainacan-openalex.php
+msgid "OpenAlex API key (optional)"
+msgstr "Chave de API do OpenAlex (opcional)"
+
+#: tainacan-openalex.php
+msgid "OpenAlex request failed."
+msgstr "A requisição ao OpenAlex falhou."
+
+#: build/index.js
+msgid "OpenAlex search results"
+msgstr "Resultados da busca no OpenAlex"
+
+#: build/index.js
+msgid "OpenAlex search type"
+msgstr "Tipo de busca no OpenAlex"
+
+#: build/index.js
+msgid "Partial"
+msgstr "Parcial"
+
+#: tainacan-openalex.php
+msgid "References collection"
+msgstr "Coleção de referências"
+
+#: build/index.js
+msgid "Review the data before continuing. Confirming will fill the mapped metadata with OpenAlex values and may replace existing values in those fields."
+msgstr "Confira os dados antes de continuar. Ao confirmar, os metadados mapeados serão preenchidos com os valores do OpenAlex e os valores existentes nesses campos poderão ser substituídos."
+
+#: build/index.js
+msgid "Review the notices shown in the confirmation window."
+msgstr "Revise os avisos exibidos na janela de confirmação."
+
+#: build/index.js
+msgid "Search"
+msgstr "Buscar"
+
+#: build/index.js
+msgid "Search failed."
+msgstr "Falha na busca."
+
+#: tainacan-openalex.php
+msgid "Search for a reference, select a result, and review the metadata before filling the item."
+msgstr "Pesquise uma referência, selecione um resultado e confira os metadados antes de preencher o item."
+
+#: build/index.js
+msgid "Search request failed."
+msgstr "Erro na busca."
+
+#: build/index.js
+msgid "Searching OpenAlex..."
+msgstr "Buscando no OpenAlex..."
+
+#: build/index.js
+msgid "Select"
+msgstr "Selecionar"
+
+#: build/index.js
+msgid "Select %s"
+msgstr "Selecionar %s"
+
+#: tainacan-openalex.php
+msgid "Select a collection"
+msgstr "Selecione uma coleção"
+
+#: tainacan-openalex.php
+msgid "Select a metadatum"
+msgstr "Selecione um metadado"
+
+#: tainacan-openalex.php
+msgid "Select the Tainacan collection that stores bibliographic references."
+msgstr "Selecione a coleção do Tainacan onde ficam as referências bibliográficas."
+
+#: tainacan-openalex.php
+msgid "Select the collection metadatum that will receive the DOI."
+msgstr "Selecione o metadado da coleção que receberá o DOI."
+
+#: tainacan-openalex.php
+msgid "Select the collection metadatum that will receive the URL."
+msgstr "Selecione o metadado da coleção que receberá a URL."
+
+#: tainacan-openalex.php
+msgid "Select the collection metadatum that will receive the authors."
+msgstr "Selecione o metadado da coleção que receberá os autores."
+
+#: tainacan-openalex.php
+msgid "Select the collection metadatum that will receive the formatted reference."
+msgstr "Selecione o metadado da coleção que receberá a referência formatada."
+
+#: tainacan-openalex.php
+msgid "Select the collection metadatum that will receive the journal or venue."
+msgstr "Selecione o metadado da coleção que receberá o periódico ou veículo."
+
+#: tainacan-openalex.php
+msgid "Select the collection metadatum that will receive the title."
+msgstr "Selecione o metadado da coleção que receberá o título."
+
+#: tainacan-openalex.php
+msgid "Select the collection metadatum that will receive the year."
+msgstr "Selecione o metadado da coleção que receberá o ano."
+
+#: tainacan-openalex.php
+msgid "Several terms named “%1$s” exist in the “%2$s” taxonomy. None of them was selected automatically."
+msgstr "Existem vários termos chamados “%1$s” na taxonomia “%2$s”. Nenhum deles foi selecionado automaticamente."
+
+#: tainacan-openalex.php
+msgid "Tainacan repositories are not available."
+msgstr "Os repositórios do Tainacan não estão disponíveis."
+
+#: tainacan-openalex.php
+msgid "Tainacan taxonomy support is not available."
+msgstr "O suporte a taxonomias do Tainacan não está disponível."
+
+#: tainacan-openalex.php
+msgid "The OpenAlex references collection is not configured."
+msgstr "A coleção de referências do OpenAlex não está configurada."
+
+#: tainacan-openalex.php
+msgid "The Taxonomy metadatum has no associated taxonomy."
+msgstr "O metadado de taxonomia não possui uma taxonomia associada."
+
+#: tainacan-openalex.php
+msgid "The Taxonomy metadatum options are in an unexpected format."
+msgstr "As opções do metadado de taxonomia estão em um formato inesperado."
+
+#: build/index.js
+msgid "The WordPress REST API is not available on this screen."
+msgstr "A API REST do WordPress não está disponível nesta tela."
+
+#: build/index.js
+msgid "The WordPress REST API is not available."
+msgstr "A API REST do WordPress não está disponível."
+
+#: tainacan-openalex.php
+msgid "The allow_new_terms option has an invalid value."
+msgstr "A opção allow_new_terms possui um valor inválido."
+
+#: tainacan-openalex.php
+msgid "The allow_new_terms option was not found on the Taxonomy metadatum."
+msgstr "A opção allow_new_terms não foi encontrada no metadado de taxonomia."
+
+#: tainacan-openalex.php
+msgid "The associated taxonomy could not be loaded."
+msgstr "Não foi possível carregar a taxonomia associada."
+
+#: tainacan-openalex.php
+msgid "The associated taxonomy is not registered in WordPress."
+msgstr "A taxonomia associada não está registrada no WordPress."
+
+#: build/index.js
+msgid "The configured metadatum has an invalid ID."
+msgstr "O metadado configurado possui um ID inválido."
+
+#: tainacan-openalex.php
+msgid "The current item could not be identified."
+msgstr "O item atual não foi identificado."
+
+#: tainacan-openalex.php
+msgid "The given item does not exist."
+msgstr "O item informado não existe."
+
+#: tainacan-openalex.php
+msgid "The given metadatum does not exist."
+msgstr "O metadado informado não existe."
+
+#: tainacan-openalex.php
+msgid "The given metadatum is not configured in the OpenAlex mapping."
+msgstr "O metadado informado não está configurado no mapeamento do OpenAlex."
+
+#: build/index.js
+msgid "The import finished with warnings. Review the details in the confirmation window."
+msgstr "A importação foi concluída com avisos. Revise os detalhes na janela de confirmação."
+
+#: tainacan-openalex.php
+msgid "The item or metadatum could not be loaded."
+msgstr "Não foi possível carregar o item ou o metadado."
+
+#: tainacan-openalex.php
+msgid "The metadatum ID is invalid."
+msgstr "O ID do metadado é inválido."
+
+#: tainacan-openalex.php
+msgid "The metadatum “%1$s” accepts only one value. Only the first resolved term was used."
+msgstr "O metadado “%1$s” aceita apenas um valor. Somente o primeiro termo resolvido foi utilizado."
+
+#: tainacan-openalex.php
+msgid "The metadatum “%1$s” is already used by %2$s. Each Tainacan metadatum can be mapped to only one OpenAlex field. Choose another metadatum to continue."
+msgstr "O metadado “%1$s” já está sendo usado em %2$s. Cada metadado do Tainacan só pode ser associado a um campo do OpenAlex. Escolha outro metadado para continuar."
+
+#: tainacan-openalex.php
+msgid "The taxonomy associated with the metadatum does not exist."
+msgstr "A taxonomia associada ao metadado não existe."
+
+#: tainacan-openalex.php
+msgid "The term “%1$s” could not be created in the “%2$s” taxonomy."
+msgstr "O termo “%1$s” não pôde ser criado na taxonomia “%2$s”."
+
+#: tainacan-openalex.php
+msgid "The term “%1$s” does not exist in the “%2$s” taxonomy, and new terms are not allowed."
+msgstr "O termo “%1$s” não existe na taxonomia “%2$s” e novos termos não são permitidos."
+
+#: tainacan-openalex.php
+msgid "The term “%1$s” does not exist, and the “%2$s” taxonomy does not allow creating terms."
+msgstr "O termo “%1$s” não existe e a taxonomia “%2$s” não permite a criação de termos."
+
+#: tainacan-openalex.php
+msgid "The term “%1$s” does not exist, and you do not have permission to create it in the “%2$s” taxonomy."
+msgstr "O termo “%1$s” não existe e você não tem permissão para criá-lo na taxonomia “%2$s”."
+
+#: build/index.js
+msgid "The term “%s” was created automatically."
+msgstr "O termo “%s” foi criado automaticamente."
+
+#: tainacan-openalex.php
+msgid "The value “%1$s” could not be used as a term name in the “%2$s” taxonomy."
+msgstr "O valor “%1$s” não pôde ser usado como nome de termo na taxonomia “%2$s”."
+
+#: build/index.js
+msgid "The values were resolved, but the metadatum could not be updated."
+msgstr "Os valores foram resolvidos, mas o metadado não pôde ser atualizado."
+
+#: build/index.js
+#: tainacan-openalex.php
+msgid "Title"
+msgstr "Título"
+
+#: tainacan-openalex.php
+msgid "Title search completed."
+msgstr "Busca por título concluída."
+
+#: build/index.js
+#: tainacan-openalex.php
+msgid "URL"
+msgstr "URL"
+
+#: build/index.js
+#: tainacan-openalex.php
+msgid "Year"
+msgstr "Ano"
+
+#: tainacan-openalex.php
+msgid "You do not have permission to edit items in this collection."
+msgstr "Você não tem permissão para editar itens nesta coleção."
+
+#: tainacan-openalex.php
+msgid "You do not have permission to edit this item."
+msgstr "Você não tem permissão para editar este item."
+
+#: tainacan-openalex.php
+msgid "You do not have permission to use this metadatum."
+msgstr "Você não tem permissão para usar este metadado."
+
+#: build/index.js
+msgid "metadata failed"
+msgstr "metadados com falha"
+
+#: build/index.js
+msgid "metadata filled"
+msgstr "metadados preenchidos"
+
+#: build/index.js
+msgid "metadata partially filled"
+msgstr "metadados parcialmente preenchidos"
+
+#: build/index.js
+msgid "metadata skipped"
+msgstr "metadados ignorados"
+
+#: build/index.js
+msgid "metadatum failed"
+msgstr "metadado com falha"
+
+#: build/index.js
+msgid "metadatum filled"
+msgstr "metadado preenchido"
+
+#: tainacan-openalex.php
+msgid "metadatum not set"
+msgstr "metadado não informado"
+
+#: build/index.js
+msgid "metadatum partially filled"
+msgstr "metadado parcialmente preenchido"
+
+#: build/index.js
+msgid "metadatum skipped"
+msgstr "metadado ignorado"

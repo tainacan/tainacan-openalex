@@ -1,0 +1,14 @@
+{
+  "name": "tainacan-openalex",
+  "version": "0.4.3",
+  "private": true,
+  "description": "Build tools for the Tainacan OpenAlex WordPress plugin.",
+  "scripts": {
+    "build": "wp-scripts build",
+    "start": "wp-scripts start",
+    "plugin-zip": "wp-scripts plugin-zip"
+  },
+  "devDependencies": {
+    "@wordpress/scripts": "^30.24.0"
+  }
+}

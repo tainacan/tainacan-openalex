@@ -1,0 +1,239 @@
+{
+  "translation-revision-date": "2026-10-07 10:20-0300",
+  "generator": "Tainacan OpenAlex",
+  "domain": "messages",
+  "locale_data": {
+    "messages": {
+      "": {
+        "domain": "messages",
+        "lang": "pt_BR",
+        "plural-forms": "nplurals=2; plural=(n > 1);"
+      },
+      "%1$d terms were created automatically: %2$s.": [
+        "%1$d termos foram criados automaticamente: %2$s."
+      ],
+      "(untitled)": [
+        "(sem título)"
+      ],
+      "ABNT reference": [
+        "Referência ABNT"
+      ],
+      "Author": [
+        "Autor"
+      ],
+      "Authors": [
+        "Autores"
+      ],
+      "Cancel": [
+        "Cancelar"
+      ],
+      "Close": [
+        "Fechar"
+      ],
+      "Confirm fill": [
+        "Confirmar preenchimento"
+      ],
+      "Could not fetch details from OpenAlex.": [
+        "Não foi possível obter os detalhes no OpenAlex."
+      ],
+      "Could not fill the selected metadata.": [
+        "Não foi possível preencher os metadados selecionados."
+      ],
+      "Could not identify the current item in order to save metadata via the API.": [
+        "Não foi possível identificar o item atual para salvar os metadados via API."
+      ],
+      "Could not identify the current item.": [
+        "Não foi possível identificar o item atual."
+      ],
+      "Could not load details for the selected reference.": [
+        "Não foi possível carregar os detalhes da referência selecionada."
+      ],
+      "Could not resolve one of the values.": [
+        "Não foi possível resolver um dos valores."
+      ],
+      "Could not resolve the values for this metadatum.": [
+        "Não foi possível resolver os valores deste metadado."
+      ],
+      "Created term": [
+        "Termo criado"
+      ],
+      "Created terms": [
+        "Termos criados"
+      ],
+      "DOI": [
+        "DOI"
+      ],
+      "E.g. 0028-0846": [
+        "Ex.: 0028-0846"
+      ],
+      "E.g. 10.1038/s41586-020-2649-2": [
+        "Ex.: 10.1038/s41586-020-2649-2"
+      ],
+      "E.g. Ann Cavoukian": [
+        "Ex.: Ann Cavoukian"
+      ],
+      "E.g. Privacy by Design in Information Systems": [
+        "Ex.: Privacy by Design in Information Systems"
+      ],
+      "E.g. privacy by design, machine learning": [
+        "Ex.: privacy by design, machine learning"
+      ],
+      "Empty value": [
+        "Valor vazio"
+      ],
+      "Enter something to search.": [
+        "Digite algo para buscar."
+      ],
+      "Existing term": [
+        "Termo existente"
+      ],
+      "Existing terms": [
+        "Termos existentes"
+      ],
+      "Failed": [
+        "Falhou"
+      ],
+      "Failed to load the mapping.": [
+        "Falha ao carregar o mapeamento."
+      ],
+      "Fill completed.": [
+        "Preenchimento concluído."
+      ],
+      "Fill metadata": [
+        "Preencher metadados"
+      ],
+      "Filled": [
+        "Preenchido"
+      ],
+      "Filling metadata in Tainacan...": [
+        "Preenchendo os metadados no Tainacan..."
+      ],
+      "Free search": [
+        "Busca livre"
+      ],
+      "Imported values": [
+        "Valores importados"
+      ],
+      "Invalid response while resolving the metadatum.": [
+        "Resposta inválida ao resolver o metadado."
+      ],
+      "Journal/Venue": [
+        "Periódico/Veículo"
+      ],
+      "Loading reference details...": [
+        "Carregando os detalhes da referência..."
+      ],
+      "Mapped": [
+        "Mapeado"
+      ],
+      "No mapped field has a value available to fill.": [
+        "Nenhum campo mapeado tem um valor disponível para preenchimento."
+      ],
+      "No mapped metadatum has a value available to fill.": [
+        "Nenhum metadado mapeado tem um valor disponível para preenchimento."
+      ],
+      "No metadata was processed.": [
+        "Nenhum metadado foi processado."
+      ],
+      "No permission": [
+        "Sem permissão"
+      ],
+      "No results found.": [
+        "Nenhum resultado encontrado."
+      ],
+      "No valid value could be resolved for this metadatum.": [
+        "Nenhum valor válido pôde ser resolvido para este metadado."
+      ],
+      "Not found": [
+        "Não encontrado"
+      ],
+      "Not mapped": [
+        "Não mapeado"
+      ],
+      "OpenAlex search results": [
+        "Resultados da busca no OpenAlex"
+      ],
+      "OpenAlex search type": [
+        "Tipo de busca no OpenAlex"
+      ],
+      "Partial": [
+        "Parcial"
+      ],
+      "Review the data before continuing. Confirming will fill the mapped metadata with OpenAlex values and may replace existing values in those fields.": [
+        "Confira os dados antes de continuar. Ao confirmar, os metadados mapeados serão preenchidos com os valores do OpenAlex e os valores existentes nesses campos poderão ser substituídos."
+      ],
+      "Review the notices shown in the confirmation window.": [
+        "Revise os avisos exibidos na janela de confirmação."
+      ],
+      "Search": [
+        "Buscar"
+      ],
+      "Search failed.": [
+        "Falha na busca."
+      ],
+      "Search request failed.": [
+        "Erro na busca."
+      ],
+      "Searching OpenAlex...": [
+        "Buscando no OpenAlex..."
+      ],
+      "Select": [
+        "Selecionar"
+      ],
+      "Select %s": [
+        "Selecionar %s"
+      ],
+      "The WordPress REST API is not available on this screen.": [
+        "A API REST do WordPress não está disponível nesta tela."
+      ],
+      "The WordPress REST API is not available.": [
+        "A API REST do WordPress não está disponível."
+      ],
+      "The configured metadatum has an invalid ID.": [
+        "O metadado configurado possui um ID inválido."
+      ],
+      "The import finished with warnings. Review the details in the confirmation window.": [
+        "A importação foi concluída com avisos. Revise os detalhes na janela de confirmação."
+      ],
+      "The term “%s” was created automatically.": [
+        "O termo “%s” foi criado automaticamente."
+      ],
+      "The values were resolved, but the metadatum could not be updated.": [
+        "Os valores foram resolvidos, mas o metadado não pôde ser atualizado."
+      ],
+      "Title": [
+        "Título"
+      ],
+      "URL": [
+        "URL"
+      ],
+      "Year": [
+        "Ano"
+      ],
+      "metadata failed": [
+        "metadados com falha"
+      ],
+      "metadata filled": [
+        "metadados preenchidos"
+      ],
+      "metadata partially filled": [
+        "metadados parcialmente preenchidos"
+      ],
+      "metadata skipped": [
+        "metadados ignorados"
+      ],
+      "metadatum failed": [
+        "metadado com falha"
+      ],
+      "metadatum filled": [
+        "metadado preenchido"
+      ],
+      "metadatum partially filled": [
+        "metadado parcialmente preenchido"
+      ],
+      "metadatum skipped": [
+        "metadado ignorado"
+      ]
+    }
+  }
+}
