@@ -113,7 +113,7 @@ class Tainacan_OpenAlex_Biblio {
         <div class="field openalex-biblio-hook" data-theme="light">
             <label class="label"><?php esc_html_e('Preencher bibliografia', 'tainacan-openalex'); ?></label>
             <p class="help">
-                <?php esc_html_e('Pesquise e clique em um resultado para preencher os metadados do item.', 'tainacan-openalex'); ?>
+                <?php esc_html_e('Pesquise uma referência, selecione um resultado e confira os metadados antes de preencher o item.', 'tainacan-openalex'); ?>
             </p>
             <div id="openalex-biblio-hook-root"></div>
         </div>

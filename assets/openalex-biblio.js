@@ -34,6 +34,25 @@
     return document.getElementById('openalex-biblio-hook-root');
   }
 
+  // O drawer de confirmação precisa viver diretamente no <body>.
+  // Isso evita que transforms/stacking contexts do SPA do Tainacan prendam
+  // o modal dentro da coluna do Form Hook e garante que ele fique acima
+  // da admin bar e da barra fixa de ações do editor.
+  function getConfirmationModalRoot() {
+    let root = document.getElementById('openalex-biblio-modal-root');
+
+    if (!root) {
+      root = document.createElement('div');
+      root.id = 'openalex-biblio-modal-root';
+    }
+
+    if (root.parentNode !== document.body) {
+      document.body.appendChild(root);
+    }
+
+    return root;
+  }
+
   function renderUIIfNeeded() {
     const root = getRoot();
     if (!root) return;
@@ -43,33 +62,51 @@
 
     root.innerHTML = `
       <div class="openalex-biblio-box">
-        <div class="field is-grouped is-grouped-multiline">
-          <div class="control">
-            <span class="select">
-              <select id="openalex-biblio-search-type">
-                <option value="free" selected>Busca livre</option>
-                <option value="title">Título</option>
-                <option value="author">Autor</option>
-                <option value="doi">DOI</option>
-                <option value="issn">ISSN</option>
-              </select>
-            </span>
+        <div class="openalex-biblio-search-shell">
+          <div class="field is-grouped is-grouped-multiline openalex-biblio-search-row">
+            <div class="control">
+              <span class="select">
+                <select id="openalex-biblio-search-type" aria-label="Tipo de busca no OpenAlex">
+                  <option value="free" selected>Busca livre</option>
+                  <option value="title">Título</option>
+                  <option value="author">Autor</option>
+                  <option value="doi">DOI</option>
+                  <option value="issn">ISSN</option>
+                </select>
+              </span>
+            </div>
+            <div class="control is-expanded">
+              <input
+                type="text"
+                class="input"
+                id="openalex-biblio-query"
+                placeholder="${SEARCH_PLACEHOLDERS.free}"
+                autocomplete="off"
+                aria-autocomplete="list"
+                aria-controls="openalex-biblio-results"
+                aria-expanded="false"
+              />
+            </div>
+            <div class="control">
+              <button type="button" class="button is-primary" id="openalex-biblio-search">Buscar</button>
+            </div>
           </div>
-          <div class="control is-expanded">
-            <input type="text" class="input" id="openalex-biblio-query" placeholder="${SEARCH_PLACEHOLDERS.free}" />
-          </div>
-          <div class="control">
-            <button type="button" class="button is-primary" id="openalex-biblio-search">Buscar</button>
+
+          <div
+            id="openalex-biblio-results-wrap"
+            class="box openalex-biblio-results-wrap openalex-biblio-dropdown is-hidden"
+            role="listbox"
+            aria-label="Resultados da busca no OpenAlex"
+          >
+            <div id="openalex-biblio-results" class="openalex-biblio-results-list"></div>
           </div>
         </div>
+
         <div id="openalex-biblio-status" class="openalex-biblio-status"></div>
-        <div id="openalex-biblio-preview" class="openalex-biblio-preview"></div>
-        <div id="openalex-biblio-results-wrap" class="openalex-biblio-results-wrap is-hidden">
-          <p class="has-text-weight-semibold openalex-biblio-results-title">Resultados</p>
-          <div id="openalex-biblio-results" class="openalex-biblio-results-list"></div>
-        </div>
       </div>
     `;
+
+    getConfirmationModalRoot();
     log('UI montada no Admin Form Hook');
   }
 
@@ -161,12 +198,12 @@ function getCandidateDisplayValue(candidates, field) {
   }
 
   function clearPreviewFieldMessages(fieldKey) {
-    const $field = $('.openalex-biblio-preview-card .openalex-biblio-result-field[data-field="' + fieldKey + '"]');
+    const $field = $('.openalex-biblio-confirm-modal .openalex-biblio-result-field[data-field="' + fieldKey + '"], .openalex-biblio-preview-card .openalex-biblio-result-field[data-field="' + fieldKey + '"]').first();
     $field.find('.openalex-biblio-field-resolution-messages').remove();
   }
 
   function appendPreviewFieldMessage(fieldKey, message, tone) {
-    const $field = $('.openalex-biblio-preview-card .openalex-biblio-result-field[data-field="' + fieldKey + '"]');
+    const $field = $('.openalex-biblio-confirm-modal .openalex-biblio-result-field[data-field="' + fieldKey + '"], .openalex-biblio-preview-card .openalex-biblio-result-field[data-field="' + fieldKey + '"]').first();
 
     if (!$field.length || !message) {
       return;
@@ -262,7 +299,7 @@ function getCandidateDisplayValue(candidates, field) {
   }
 
   function updatePreviewFieldStatus(fieldKey, status) {
-    const $field = $('.openalex-biblio-preview-card .openalex-biblio-result-field[data-field="' + fieldKey + '"]');
+    const $field = $('.openalex-biblio-confirm-modal .openalex-biblio-result-field[data-field="' + fieldKey + '"], .openalex-biblio-preview-card .openalex-biblio-result-field[data-field="' + fieldKey + '"]').first();
 
     if (!$field.length) {
       return;
@@ -478,32 +515,30 @@ function normalizeMultiValue(v) {
   }
 
   function renderResultCard(work, map) {
-    const detailKeys = map
-      ? WORK_FIELDS.map((field) => field.key)
-      : WORK_DETAIL_FIELDS;
+    const title = getWorkFieldValue(work, 'title') || '(sem título)';
+    const authors = getWorkFieldValue(work, 'authors');
+    const year = getWorkFieldValue(work, 'year');
+    const metaParts = [];
+
+    if (authors) metaParts.push(escapeHtml(authors));
+    if (year) metaParts.push(escapeHtml(year));
 
     return `
-      <div class="box openalex-biblio-item" data-id="${escapeAttr(work.id)}">
-        <div class="openalex-biblio-result-summary">
-          ${renderResultSummaryHtml(work)}
-        </div>
-        <div class="openalex-biblio-result-details is-hidden">
-          <div class="openalex-biblio-result-fields">
-            ${renderWorkFieldsHtml(work, detailKeys, map)}
-          </div>
-        </div>
-        <div class="field is-grouped is-grouped-right openalex-biblio-result-actions">
-          <div class="control">
-            <button type="button" class="button is-small openalex-biblio-toggle-details">Ver detalhes</button>
-          </div>
-          <div class="control">
-            <button type="button" class="button is-small is-primary openalex-biblio-fill-btn">Preencher</button>
-          </div>
-        </div>
-      </div>
+      <button
+        type="button"
+        class="openalex-biblio-suggestion"
+        data-id="${escapeAttr(work.id)}"
+        role="option"
+        aria-label="Selecionar ${escapeAttr(title)}"
+      >
+        <span class="openalex-biblio-suggestion-copy">
+          <span class="openalex-biblio-suggestion-title">${escapeHtml(title)}</span>
+          ${metaParts.length ? `<span class="openalex-biblio-suggestion-meta">${metaParts.join(' · ')}</span>` : ''}
+        </span>
+        <span class="openalex-biblio-suggestion-action">Selecionar</span>
+      </button>
     `;
   }
-
 
 
   function getSearchType() {
@@ -515,20 +550,30 @@ function normalizeMultiValue(v) {
     $('#openalex-biblio-query').attr('placeholder', SEARCH_PLACEHOLDERS[type] || SEARCH_PLACEHOLDERS.free);
   }
 
+  function hideSearchResults() {
+    $('#openalex-biblio-results').empty();
+    $('#openalex-biblio-results-wrap').addClass('is-hidden');
+    $('#openalex-biblio-query').attr('aria-expanded', 'false');
+  }
+
   function renderResults(items, map) {
     const $container = $('#openalex-biblio-results');
     const $wrap = $('#openalex-biblio-results-wrap');
+
     $container.empty();
-    $wrap.removeClass('is-hidden');
 
     if (!items || !items.length) {
-      $container.append('<div class="box has-text-grey">Nenhum resultado.</div>');
-      return;
+      $container.append(
+        '<div class="openalex-biblio-empty-result" role="option" aria-disabled="true">Nenhum resultado encontrado.</div>'
+      );
+    } else {
+      items.forEach((it) => {
+        $container.append(renderResultCard(it, map));
+      });
     }
 
-    items.forEach((it) => {
-      $container.append(renderResultCard(it, map));
-    });
+    $wrap.removeClass('is-hidden');
+    $('#openalex-biblio-query').attr('aria-expanded', 'true');
   }
 
   // =========================
@@ -542,6 +587,168 @@ function normalizeMultiValue(v) {
     return $.post(ajaxUrl, Object.assign({ action, nonce }, data || {}));
   }
 
+
+
+  // =========================
+  // Modal de confirmação
+  // =========================
+  function setModalStatus(html, isError, requestedTone) {
+    const $status = $('#openalex-biblio-modal-status');
+
+    if (!$status.length) return;
+    if (!html) { $status.empty(); return; }
+
+    const allowedTones = ['is-primary', 'is-warning', 'is-danger', 'is-success'];
+    const tone = allowedTones.includes(requestedTone)
+      ? requestedTone
+      : (isError ? 'is-danger' : 'is-primary');
+
+    $status.html(
+      `<div class="notification ${tone} is-light is-size-7 openalex-biblio-modal-status-message">${html}</div>`
+    );
+  }
+
+  function closeConfirmationModal(forceClose) {
+    const root = getConfirmationModalRoot();
+    if (!root) return;
+    if (root.__openalexFilling && !forceClose) return;
+
+    root.innerHTML = '';
+    root.__openalexTasks = [];
+    root.__openalexCandidates = [];
+    root.__openalexFilling = false;
+
+    if (!root.__openalexHadIsClipped) {
+      document.documentElement.classList.remove('is-clipped');
+    }
+
+    root.__openalexHadIsClipped = false;
+  }
+
+  function openConfirmationLoading() {
+    const root = getConfirmationModalRoot();
+    if (!root) return;
+
+    root.__openalexTasks = [];
+    root.__openalexCandidates = [];
+    root.__openalexFilling = false;
+    root.__openalexHadIsClipped = document.documentElement.classList.contains('is-clipped');
+
+    root.innerHTML = `
+      <div class="openalex-biblio-confirm-modal">
+        <div class="openalex-biblio-confirm-backdrop"></div>
+        <aside class="openalex-biblio-confirm-panel" role="dialog" aria-modal="true" aria-labelledby="openalex-biblio-modal-title">
+          <header class="openalex-biblio-confirm-header">
+            <div class="openalex-biblio-confirm-heading">
+              <span class="openalex-biblio-confirm-kicker">OpenAlex</span>
+              <h2 id="openalex-biblio-modal-title">Confirmar preenchimento</h2>
+            </div>
+            <button type="button" class="openalex-biblio-confirm-close openalex-biblio-modal-close" aria-label="Fechar">
+              <span aria-hidden="true">×</span>
+            </button>
+          </header>
+          <section class="openalex-biblio-confirm-body">
+            <div class="openalex-biblio-modal-loading">
+              <button type="button" class="button is-loading" aria-hidden="true" tabindex="-1"></button>
+              <span>Carregando os detalhes da referência...</span>
+            </div>
+          </section>
+        </aside>
+      </div>
+    `;
+
+    document.documentElement.classList.add('is-clipped');
+  }
+
+  function buildConfirmationTasks(candidates) {
+    return (Array.isArray(candidates) ? candidates : [])
+      .filter((candidate) => (
+        !!parseInt(candidate.metadatumId, 10) &&
+        !isRestValueEmpty(candidate.value)
+      ))
+      .map((candidate) => ({
+        field: candidate.field,
+        label: candidate.label,
+        metadatumId: parseInt(candidate.metadatumId, 10),
+        value: candidate.value
+      }));
+  }
+
+  function renderConfirmationModal(candidates, work) {
+    const root = getConfirmationModalRoot();
+    if (!root) return;
+
+    const tasks = buildConfirmationTasks(candidates);
+    const fieldsHtml = (Array.isArray(candidates) ? candidates : [])
+      .map((candidate) => renderPreviewFieldHtml(candidate, false))
+      .join('');
+
+    root.__openalexTasks = tasks;
+    root.__openalexCandidates = candidates;
+    root.__openalexFilling = false;
+
+    root.innerHTML = `
+      <div class="openalex-biblio-confirm-modal">
+        <div class="openalex-biblio-confirm-backdrop openalex-biblio-modal-close"></div>
+        <aside class="openalex-biblio-confirm-panel" role="dialog" aria-modal="true" aria-labelledby="openalex-biblio-modal-title">
+          <header class="openalex-biblio-confirm-header">
+            <div class="openalex-biblio-confirm-heading">
+              <span class="openalex-biblio-confirm-kicker">OpenAlex</span>
+              <h2 id="openalex-biblio-modal-title">Confirmar preenchimento</h2>
+            </div>
+            <button type="button" class="openalex-biblio-confirm-close openalex-biblio-modal-close" aria-label="Fechar">
+              <span aria-hidden="true">×</span>
+            </button>
+          </header>
+
+          <section class="openalex-biblio-confirm-body">
+            <div class="notification is-primary is-light is-size-7 openalex-biblio-confirm-note">
+              Confira os dados antes de continuar. Ao confirmar, os metadados mapeados serão preenchidos
+              com os valores do OpenAlex e valores existentes nesses campos poderão ser substituídos.
+            </div>
+
+            <div id="openalex-biblio-modal-status"></div>
+
+            <div class="openalex-biblio-modal-work-summary">
+              ${renderResultSummaryHtml(work || {})}
+            </div>
+
+            <div class="openalex-biblio-result-fields openalex-biblio-modal-fields">
+              ${fieldsHtml}
+            </div>
+          </section>
+
+          <footer class="openalex-biblio-confirm-footer openalex-biblio-modal-actions">
+            <button type="button" class="button openalex-biblio-modal-close">Cancelar</button>
+            <button
+              type="button"
+              class="button is-primary openalex-biblio-confirm-fill"
+              ${tasks.length ? '' : 'disabled'}
+            >
+              Preencher metadados
+            </button>
+          </footer>
+        </aside>
+      </div>
+    `;
+
+    document.documentElement.classList.add('is-clipped');
+
+    if (!tasks.length) {
+      setModalStatus('Nenhum campo mapeado com valor disponível para preencher.', true, 'is-warning');
+    }
+  }
+
+  function setConfirmationBusy(isBusy) {
+    const root = getConfirmationModalRoot();
+    if (root) root.__openalexFilling = !!isBusy;
+
+    const $confirm = $('.openalex-biblio-confirm-fill');
+    const $closeButtons = $('.openalex-biblio-confirm-modal .openalex-biblio-modal-close');
+
+    $confirm.toggleClass('is-loading', !!isBusy).prop('disabled', !!isBusy);
+    $closeButtons.prop('disabled', !!isBusy);
+  }
 
 
 // issue 15
@@ -1135,8 +1342,8 @@ function buildQueueSummary(result) {
   const needsReview = result.partial > 0 || result.failed > 0 || result.warnings.length > 0;
 
   return needsReview
-    ? summary + ' Revise os avisos exibidos na prévia.'
-    : summary + ' Revise os valores antes de salvar o item.';
+    ? summary + ' Revise os avisos exibidos na janela de confirmação.'
+    : summary + ' Preenchimento concluído.';
 }
 
 // fim issue 15
@@ -1154,37 +1361,31 @@ function buildQueueSummary(result) {
     return currentMapping;
   }
 
-  async function fillWorkFromOpenAlex(openalexId, $fillBtn) {
+  async function fillWorkFromOpenAlex(openalexId, $trigger) {
     if (!openalexId) return;
+
+    openConfirmationLoading();
+
+    if ($trigger && $trigger.length) {
+      $trigger.prop('disabled', true).attr('aria-busy', 'true');
+    }
 
     try {
       let map = currentMapping;
-
-      if (!map) {
-        setStatus('Carregando mapeamento...', false);
-        map = await loadSettingsMapping();
-      }
-
-      setStatus('Carregando detalhes do OpenAlex...', false);
+      if (!map) map = await loadSettingsMapping();
 
       const resp = await ajaxPost('tainacan_openalex_work_get', { id: openalexId });
-
       if (!resp || !resp.success) {
-        setStatus('Erro ao obter detalhes (AJAX).', true);
-        err('resp', resp);
-        return;
+        throw resp || new Error('Erro ao obter detalhes do OpenAlex.');
       }
 
       const work = (resp.data && resp.data.work) ? resp.data.work : {};
       const debug = (resp.data && resp.data.debug) ? resp.data.debug : null;
+      const candidates = workToCandidates(work, map);
 
       log('[DEBUG] mapeamento recebido:', map);
       log('[DEBUG] work normalizado recebido:', work);
       log('[DEBUG] debug backend OpenAlex:', debug);
-
-      const candidates = workToCandidates(work, map);
-
-      renderWorkPreview(candidates);
 
       console.table(candidates.map((candidate) => ({
         campo: candidate.field,
@@ -1195,69 +1396,20 @@ function buildQueueSummary(result) {
         vazio: isRestValueEmpty(candidate.value)
       })));
 
-      const tasks = candidates
-        .filter((candidate) => !!parseInt(candidate.metadatumId, 10))
-        .map((candidate) => ({
-          field: candidate.field,
-          label: candidate.label,
-          metadatumId: parseInt(candidate.metadatumId, 10),
-          value: candidate.value
-        }));
-
-      log('[DEBUG] tasks finais para REST:', tasks);
-
-      if (!tasks.length) {
-        setStatus('Nenhum campo mapeado para preencher.', true);
-        return;
-      }
-
-      setStatus('Enviando metadados ao Tainacan via API REST...', false);
-
-      if ($fillBtn && $fillBtn.length) {
-        $fillBtn.addClass('is-loading').prop('disabled', true);
-      }
-
-      let queueResult = createEmptyQueueResult();
-
-      try {
-        queueResult = await fillQueue(tasks);
-      } finally {
-        if ($fillBtn && $fillBtn.length) {
-          $fillBtn.removeClass('is-loading').prop('disabled', false);
-        }
-      }
-
-      const hasReviewableProblems =
-        queueResult.partial > 0 ||
-        queueResult.failed > 0 ||
-        queueResult.warnings.length > 0;
-
-      if (!hasReviewableProblems) {
-        $('#openalex-biblio-results').empty();
-        $('#openalex-biblio-results-wrap').addClass('is-hidden');
-      }
-
-      const successfulCount = queueResult.applied + queueResult.partial;
-      const summary = buildQueueSummary(queueResult);
-
-      if (successfulCount > 0 && hasReviewableProblems) {
-        setStatus(summary, false, 'is-warning');
-      } else if (successfulCount > 0) {
-        setStatus(summary, false, 'is-success');
-      } else {
-        setStatus(summary, true, 'is-danger');
-      }
+      renderConfirmationModal(candidates, work);
     } catch (xhr) {
-      const data = xhr && xhr.responseJSON && xhr.responseJSON.data
-        ? xhr.responseJSON.data
-        : {};
+      const message = getAjaxErrorMessage(
+        xhr,
+        'Não foi possível carregar os detalhes da referência selecionada.'
+      );
 
-      const message = data.message
-        || (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message)
-        || 'Erro ao processar a seleção (AJAX).';
-
-      setStatus(message, true);
-      err('[DEBUG] Erro ao preencher work:', xhr);
+      closeConfirmationModal(true);
+      setStatus(message, true, 'is-danger');
+      err('[DEBUG] Erro ao preparar confirmação:', xhr);
+    } finally {
+      if ($trigger && $trigger.length) {
+        $trigger.prop('disabled', false).removeAttr('aria-busy');
+      }
     }
   }
 
@@ -1266,6 +1418,7 @@ function buildQueueSummary(result) {
   // =========================
   $(document).on('change', '#openalex-biblio-search-type', function () {
     syncPlaceholder();
+    hideSearchResults();
   });
 
   $(document).on('click', '#openalex-biblio-search', function () {
@@ -1273,13 +1426,14 @@ function buildQueueSummary(result) {
     const q = ($('#openalex-biblio-query').val() || '').trim();
     const searchType = getSearchType();
 
-    if (!q) { setStatus('Digite algo para buscar.', true); return; }
+    if (!q) {
+      hideSearchResults();
+      setStatus('Digite algo para buscar.', true);
+      return;
+    }
 
+    hideSearchResults();
     setStatus('Buscando no OpenAlex...', false);
-    clearWorkPreview();
-    $('#openalex-biblio-results').empty();
-    $('#openalex-biblio-results-wrap').removeClass('is-hidden');
-
     $btn.addClass('is-loading').prop('disabled', true);
 
     const finishSearch = function () {
@@ -1312,6 +1466,7 @@ function buildQueueSummary(result) {
         const msg = xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message
           ? xhr.responseJSON.data.message
           : 'Erro na busca (AJAX).';
+        hideSearchResults();
         setStatus(msg, true);
         err('xhr', xhr);
         finishSearch();
@@ -1322,31 +1477,84 @@ function buildQueueSummary(result) {
     if (e.key === 'Enter') {
       e.preventDefault();
       $('#openalex-biblio-search').trigger('click');
+      return;
     }
+
+    if (e.key === 'Escape') hideSearchResults();
   });
 
-  $(document).on('click', '.openalex-biblio-toggle-details', function (e) {
+  $(document).on('click', '.openalex-biblio-suggestion', function (e) {
+    e.preventDefault();
+    const $button = $(this);
+    const openalexId = $button.data('id');
+
+    hideSearchResults();
+    fillWorkFromOpenAlex(openalexId, $button);
+  });
+
+  $(document).on('click', '.openalex-biblio-modal-close', function (e) {
+    e.preventDefault();
+    closeConfirmationModal(false);
+  });
+
+  $(document).on('click', '.openalex-biblio-confirm-fill', async function (e) {
     e.preventDefault();
 
-    const $btn = $(this);
-    const $details = $btn.closest('.openalex-biblio-item').find('.openalex-biblio-result-details');
-    const expanded = !$details.hasClass('is-hidden');
+    const root = getConfirmationModalRoot();
+    const tasks = root && Array.isArray(root.__openalexTasks) ? root.__openalexTasks : [];
 
-    if (expanded) {
-      $details.addClass('is-hidden');
-      $btn.text('Ver detalhes');
+    if (!tasks.length) {
+      setModalStatus('Nenhum metadado mapeado com valor disponível para preencher.', true, 'is-warning');
+      return;
+    }
+
+    setConfirmationBusy(true);
+    setModalStatus('Preenchendo os metadados no Tainacan...', false, 'is-primary');
+
+    let queueResult = createEmptyQueueResult();
+    try {
+      queueResult = await fillQueue(tasks);
+    } finally {
+      setConfirmationBusy(false);
+    }
+
+    const hasReviewableProblems =
+      queueResult.partial > 0 ||
+      queueResult.failed > 0 ||
+      queueResult.warnings.length > 0;
+
+    const successfulCount = queueResult.applied + queueResult.partial;
+    const summary = buildQueueSummary(queueResult);
+
+    if (successfulCount > 0 && !hasReviewableProblems) {
+      closeConfirmationModal(true);
+      setStatus(summary, false, 'is-success');
+      return;
+    }
+
+    if (successfulCount > 0) {
+      setModalStatus(summary, false, 'is-warning');
+      setStatus('A importação foi concluída com avisos. Revise os detalhes na janela de confirmação.', false, 'is-warning');
     } else {
-      $details.removeClass('is-hidden');
-      $btn.text('Ocultar detalhes');
+      setModalStatus(summary, true, 'is-danger');
+      setStatus('Não foi possível preencher os metadados selecionados.', true, 'is-danger');
     }
   });
 
-  $(document).on('click', '.openalex-biblio-fill-btn', function (e) {
-    e.preventDefault();
+  $(document).on('click', function (e) {
+    const $target = $(e.target);
+    if (
+      !$target.closest('.openalex-biblio-search-shell').length &&
+      !$target.closest('.openalex-biblio-confirm-modal').length
+    ) {
+      hideSearchResults();
+    }
+  });
 
-    const $btn = $(this);
-    const openalexId = $btn.closest('.openalex-biblio-item').data('id');
-    fillWorkFromOpenAlex(openalexId, $btn);
+  $(document).on('keydown', function (e) {
+    if (e.key === 'Escape' && $('.openalex-biblio-confirm-modal').length) {
+      closeConfirmationModal(false);
+    }
   });
 
   setTimeout(syncPlaceholder, 50);

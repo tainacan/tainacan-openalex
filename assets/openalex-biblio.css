@@ -124,20 +124,108 @@
   margin-bottom: 0;
 }
 
+.openalex-biblio-search-shell {
+  position: relative;
+}
+
+.openalex-biblio-search-row {
+  margin-bottom: 0 !important;
+}
+
 .openalex-biblio-status-message,
-.openalex-biblio-results-wrap,
 .openalex-biblio-preview-wrap {
   margin-top: 0.75rem;
 }
 
-.openalex-biblio-results-title {
-  margin-bottom: 0.5rem;
+/*
+ * Issue #14: os resultados agora aparecem como uma lista suspensa sobre o
+ * formulário, sem aumentar a altura da página inteira.
+ */
+.openalex-biblio-dropdown {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  right: 0;
+  max-height: min(22rem, 55vh);
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.25rem;
+  background-color: var(--bulma-scheme-main, #ffffff);
+  color: var(--bulma-text, inherit);
+  border: 1px solid var(--bulma-border, #dbdbdb);
 }
 
 .openalex-biblio-results-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0;
+}
+
+.openalex-biblio-suggestion {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0.85rem;
+  border: 0;
+  border-bottom: 1px solid var(--bulma-border, #dbdbdb);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.openalex-biblio-suggestion:last-child {
+  border-bottom: 0;
+}
+
+.openalex-biblio-suggestion:hover,
+.openalex-biblio-suggestion:focus-visible {
+  background-color: var(--bulma-scheme-main-bis, #f5f5f5);
+}
+
+.openalex-biblio-suggestion:focus-visible {
+  outline: 2px solid var(--bulma-primary, #485fc7);
+  outline-offset: -2px;
+}
+
+.openalex-biblio-suggestion-copy {
+  min-width: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.openalex-biblio-suggestion-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.openalex-biblio-suggestion-meta {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--bulma-text-weak, #6b7280);
+  overflow-wrap: anywhere;
+}
+
+.openalex-biblio-suggestion-action {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--bulma-primary, #485fc7);
+}
+
+.openalex-biblio-empty-result {
+  padding: 0.75rem 0.85rem;
+  font-size: 0.8rem;
+  color: var(--bulma-text-weak, #6b7280);
 }
 
 .openalex-biblio-result-summary {
@@ -146,12 +234,13 @@
 
 .openalex-biblio-result-title {
   margin-bottom: 0.25rem;
-  font-size: 0.87rem;
-  line-height: 1.3;
+  font-size: 0.95rem;
+  line-height: 1.35;
 }
 
 .openalex-biblio-result-meta {
   margin-bottom: 0;
+  color: var(--bulma-text-weak, inherit);
 }
 
 .openalex-biblio-result-details {
@@ -186,7 +275,10 @@
 }
 
 .openalex-biblio-field-value {
+  margin-bottom: 0 !important;
   word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .openalex-biblio-item {
@@ -201,6 +293,260 @@
   margin-bottom: 0 !important;
 }
 
+/*
+ * Issue #14 — drawer de confirmação.
+ * Não dependemos da geometria do .modal/.modal-card do Bulma porque o editor
+ * do Tainacan e a admin bar do WordPress criam stacking contexts próprios.
+ */
+.openalex-biblio-confirm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  font-family: inherit;
+}
+
+.openalex-biblio-confirm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.56);
+  backdrop-filter: blur(1px);
+}
+
+.openalex-biblio-confirm-panel {
+  position: relative;
+  z-index: 1;
+  width: min(46rem, 58vw);
+  min-width: 34rem;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: var(--bulma-scheme-main, #ffffff);
+  color: var(--bulma-text, #242424);
+  border-left: 1px solid var(--bulma-border, #dbdbdb);
+  box-shadow: -14px 0 36px rgba(0, 0, 0, 0.18);
+}
+
+.openalex-biblio-confirm-header {
+  flex: 0 0 auto;
+  min-height: 5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  box-sizing: border-box;
+  background: var(--bulma-scheme-main, #ffffff);
+  border-bottom: 1px solid var(--bulma-border, #dbdbdb);
+}
+
+.openalex-biblio-confirm-heading {
+  min-width: 0;
+}
+
+.openalex-biblio-confirm-kicker {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: var(--bulma-text-weak, #6b7280);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.openalex-biblio-confirm-header h2 {
+  margin: 0;
+  color: inherit;
+  font-size: 1.35rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.openalex-biblio-confirm-close {
+  flex: 0 0 2.25rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--bulma-text, #242424);
+  font: inherit;
+  font-size: 1.65rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.openalex-biblio-confirm-close:hover,
+.openalex-biblio-confirm-close:focus-visible {
+  background: var(--bulma-scheme-main-bis, #f3f4f6);
+}
+
+.openalex-biblio-confirm-close:focus-visible {
+  outline: 2px solid var(--bulma-primary, #485fc7);
+  outline-offset: 2px;
+}
+
+.openalex-biblio-confirm-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.35rem 1.5rem 1.6rem;
+  box-sizing: border-box;
+  scrollbar-gutter: stable;
+}
+
+.openalex-biblio-confirm-note,
+.openalex-biblio-modal-status-message {
+  margin: 0 0 1rem !important;
+}
+
+.openalex-biblio-modal-work-summary {
+  margin: 0 0 0.9rem;
+  padding: 0 0 1rem;
+  border-bottom: 1px solid var(--bulma-border, #dbdbdb);
+}
+
+.openalex-biblio-modal-work-summary .openalex-biblio-result-summary {
+  margin: 0;
+}
+
+.openalex-biblio-confirm-panel .openalex-biblio-result-title {
+  margin: 0 0 0.3rem;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.openalex-biblio-confirm-panel .openalex-biblio-result-meta {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.openalex-biblio-modal-fields {
+  gap: 0;
+}
+
+.openalex-biblio-modal-fields .openalex-biblio-result-field {
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--bulma-border, #dbdbdb);
+}
+
+.openalex-biblio-modal-fields .openalex-biblio-result-field:first-child {
+  padding-top: 0.15rem;
+}
+
+.openalex-biblio-modal-fields .openalex-biblio-result-field:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.openalex-biblio-confirm-panel .openalex-biblio-field-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.79rem;
+  line-height: 1.25;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.openalex-biblio-confirm-panel .openalex-biblio-field-label strong {
+  color: inherit;
+  font-weight: 650;
+}
+
+.openalex-biblio-confirm-panel .openalex-biblio-field-value {
+  margin: 0 !important;
+  color: inherit;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.openalex-biblio-confirm-panel .openalex-biblio-field-status {
+  font-size: 0.64rem;
+  line-height: 1.2;
+  padding: 0.18rem 0.48rem;
+}
+
+.openalex-biblio-confirm-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  min-height: 4.5rem;
+  padding: 0.9rem 1.5rem;
+  box-sizing: border-box;
+  background: var(--bulma-scheme-main, #ffffff);
+  border-top: 1px solid var(--bulma-border, #dbdbdb);
+}
+
+.openalex-biblio-confirm-footer .button {
+  margin: 0;
+}
+
+.openalex-biblio-modal-loading {
+  min-height: 10rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: inherit;
+}
+
+.openalex-biblio-modal-loading .button {
+  pointer-events: none;
+  border-color: transparent;
+  background: transparent;
+}
+
+.openalex-biblio-field-resolution-messages .notification:last-child {
+  margin-bottom: 0 !important;
+}
+
 .openalex-biblio-results-wrap.is-hidden {
   display: none !important;
+}
+
+@media screen and (max-width: 768px) {
+  .openalex-biblio-dropdown {
+    max-height: 50vh;
+  }
+
+  .openalex-biblio-suggestion {
+    align-items: flex-start;
+  }
+
+  .openalex-biblio-suggestion-action {
+    display: none;
+  }
+
+  .openalex-biblio-confirm-panel {
+    width: 100vw;
+    min-width: 0;
+    border-left: 0;
+  }
+
+  .openalex-biblio-confirm-header,
+  .openalex-biblio-confirm-body,
+  .openalex-biblio-confirm-footer {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .openalex-biblio-confirm-footer {
+    flex-wrap: wrap;
+  }
 }
