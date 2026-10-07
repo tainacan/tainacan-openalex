@@ -1,5 +1,5 @@
 msgid ""
-msgstr "Project-Id-Version: Tainacan OpenAlex 0.4.3\nReport-Msgid-Bugs-To: https://github.com/tainacan/tainacan-openalex\nPOT-Creation-Date: 2026-10-07 10:20-0300\nPO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\nLast-Translator: FULL NAME <EMAIL@ADDRESS>\nLanguage-Team: LANGUAGE <LL@li.org>\nLanguage: \nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\nPlural-Forms: nplurals=2; plural=(n > 1);\n"
+msgstr "Project-Id-Version: Tainacan OpenAlex 0.1.0\nReport-Msgid-Bugs-To: https://github.com/tainacan/tainacan-openalex\nPOT-Creation-Date: 2026-10-07 10:20-0300\nPO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\nLast-Translator: FULL NAME <EMAIL@ADDRESS>\nLanguage-Team: LANGUAGE <LL@li.org>\nLanguage: \nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\nPlural-Forms: nplurals=2; plural=(n > 1);\n"
 
 #: build/index.js
 msgid "%1$d terms were created automatically: %2$s."
@@ -238,31 +238,31 @@ msgid "Mapped"
 msgstr ""
 
 #: tainacan-openalex.php
-msgid "Mapping: ABNT reference → metadatum"
+msgid "Mapping: ABNT reference"
 msgstr ""
 
 #: tainacan-openalex.php
-msgid "Mapping: Authors → metadatum"
+msgid "Mapping: Authors"
 msgstr ""
 
 #: tainacan-openalex.php
-msgid "Mapping: DOI → metadatum"
+msgid "Mapping: DOI"
 msgstr ""
 
 #: tainacan-openalex.php
-msgid "Mapping: Journal/Venue → metadatum"
+msgid "Mapping: Journal/Venue"
 msgstr ""
 
 #: tainacan-openalex.php
-msgid "Mapping: Title → metadatum"
+msgid "Mapping: Title"
 msgstr ""
 
 #: tainacan-openalex.php
-msgid "Mapping: URL → metadatum"
+msgid "Mapping: URL"
 msgstr ""
 
 #: tainacan-openalex.php
-msgid "Mapping: Year → metadatum"
+msgid "Mapping: Year"
 msgstr ""
 
 #: tainacan-openalex.php

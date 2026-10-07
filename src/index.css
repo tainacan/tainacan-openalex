@@ -13,20 +13,21 @@
  * - keep tags/notifications with enough contrast.
  */
 
-.openalex-hook {
+.openalex-hook,
+.openalex-confirm-modal {
   color-scheme: light;
-  --openalex-surface: #ffffff;
-  --openalex-surface-soft: #f7f7f8;
-  --openalex-text: #243342;
-  --openalex-text-strong: #1f2937;
-  --openalex-text-muted: #5b6673;
-  --openalex-border: #d9dee5;
-  --openalex-link: #0b5cad;
-  --openalex-link-hover: #084785;
-  --openalex-tag-bg: #dff3ef;
-  --openalex-tag-text: #1f4d45;
-  --openalex-note-bg: #d9f0eb;
-  --openalex-note-text: #1f2937;
+  --openalex-surface: var(--tainacan-background-color, #ffffff);
+  --openalex-surface-soft: var(--tainacan-gray0, #f7f7f8);
+  --openalex-text: var(--tainacan-label-color, #243342);
+  --openalex-text-strong: var(--tainacan-heading-color, #1f2937);
+  --openalex-text-muted: var(--tainacan-info-color, #5b6673);
+  --openalex-border: var(--tainacan-input-border-color, #d9dee5);
+  --openalex-link: var(--tainacan-secondary, #0b5cad);
+  --openalex-link-hover: var(--tainacan-turquoise6, #084785);
+  --openalex-tag-bg: var(--tainacan-green1, #dff3ef);
+  --openalex-tag-text: var(--tainacan-green2, #1f4d45);
+  --openalex-note-bg: var(--tainacan-yellow1, #d9f0eb);
+  --openalex-note-text: var(--tainacan-yellow2, #1f2937);
 }
 
 /* Surfaces */
@@ -39,7 +40,6 @@
   --bulma-box-color: var(--openalex-text);
   --bulma-card-background-color: var(--openalex-surface);
   --bulma-card-color: var(--openalex-text);
-  background-color: var(--openalex-surface) !important;
   color: var(--openalex-text) !important;
 }
 
@@ -143,17 +143,18 @@
  */
 .openalex-dropdown {
   position: absolute;
-  z-index: 60;
+  z-index: 999;
   top: calc(100% + 0.35rem);
   left: 0;
   right: 0;
   max-height: min(22rem, 55vh);
   overflow-y: auto;
   margin: 0;
-  padding: 0.25rem;
-  background-color: var(--bulma-scheme-main, #ffffff);
-  color: var(--bulma-text, inherit);
-  border: 1px solid var(--bulma-border, #dbdbdb);
+  padding: 0 !important;
+  border-radius: var(--tainacan-input-border-radius, 2px) !important;
+  background-color: var(--openalex-surface);
+  color: var(--openalex-text);
+  border: 1px solid var(--openalex-border);
 }
 
 .openalex-results-list {
@@ -170,7 +171,7 @@
   gap: 1rem;
   padding: 0.75rem 0.85rem;
   border: 0;
-  border-bottom: 1px solid var(--bulma-border, #dbdbdb);
+  border-bottom: 1px solid var(--openalex-border);
   border-radius: 0;
   background: transparent;
   color: inherit;
@@ -185,11 +186,11 @@
 
 .openalex-suggestion:hover,
 .openalex-suggestion:focus-visible {
-  background-color: var(--bulma-scheme-main-bis, #f5f5f5);
+  background-color: var(--openalex-surface-soft);
 }
 
 .openalex-suggestion:focus-visible {
-  outline: 2px solid var(--bulma-primary, #485fc7);
+  outline: 2px solid var(--openalex-link);
   outline-offset: -2px;
 }
 
@@ -211,7 +212,7 @@
 .openalex-suggestion-meta {
   font-size: 0.75rem;
   line-height: 1.35;
-  color: var(--bulma-text-weak, #6b7280);
+  color: var(--openalex-text-muted);
   overflow-wrap: anywhere;
 }
 
@@ -219,13 +220,13 @@
   flex: 0 0 auto;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--bulma-primary, #485fc7);
+  color: var(--openalex-link);
 }
 
 .openalex-empty-result {
   padding: 0.75rem 0.85rem;
   font-size: 0.8rem;
-  color: var(--bulma-text-weak, #6b7280);
+  color: var(--openalex-text-muted);
 }
 
 .openalex-result-summary {
@@ -240,7 +241,7 @@
 
 .openalex-result-meta {
   margin-bottom: 0;
-  color: var(--bulma-text-weak, inherit);
+  color: var(--openalex-text-muted);
 }
 
 .openalex-result-details {
@@ -311,8 +312,7 @@
 .openalex-confirm-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(17, 24, 39, 0.56);
-  backdrop-filter: blur(1px);
+  background: var(--tainacan-backdrop-background-color, rgba(0, 0, 0, 0.35)) !important;
 }
 
 .openalex-confirm-panel {
@@ -327,9 +327,9 @@
   flex-direction: column;
   overflow: hidden;
   box-sizing: border-box;
-  background: var(--bulma-scheme-main, #ffffff);
-  color: var(--bulma-text, #242424);
-  border-left: 1px solid var(--bulma-border, #dbdbdb);
+  background: var(--openalex-surface);
+  color: var(--openalex-text);
+  border-left: 1px solid var(--openalex-border);
   box-shadow: -14px 0 36px rgba(0, 0, 0, 0.18);
 }
 
@@ -342,8 +342,8 @@
   gap: 1rem;
   padding: 1rem 1.5rem;
   box-sizing: border-box;
-  background: var(--bulma-scheme-main, #ffffff);
-  border-bottom: 1px solid var(--bulma-border, #dbdbdb);
+  background: var(--openalex-surface);
+  border-bottom: 1px solid var(--openalex-border);
 }
 
 .openalex-confirm-heading {
@@ -353,7 +353,7 @@
 .openalex-confirm-kicker {
   display: block;
   margin-bottom: 0.2rem;
-  color: var(--bulma-text-weak, #6b7280);
+  color: var(--openalex-text-muted);
   font-size: 0.68rem;
   font-weight: 700;
   line-height: 1.2;
@@ -381,7 +381,7 @@
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: var(--bulma-text, #242424);
+  color: var(--openalex-text);
   font: inherit;
   font-size: 1.65rem;
   line-height: 1;
@@ -390,11 +390,11 @@
 
 .openalex-confirm-close:hover,
 .openalex-confirm-close:focus-visible {
-  background: var(--bulma-scheme-main-bis, #f3f4f6);
+  background: var(--openalex-surface-soft);
 }
 
 .openalex-confirm-close:focus-visible {
-  outline: 2px solid var(--bulma-primary, #485fc7);
+  outline: 2px solid var(--openalex-link);
   outline-offset: 2px;
 }
 
@@ -416,7 +416,7 @@
 .openalex-modal-work-summary {
   margin: 0 0 0.9rem;
   padding: 0 0 1rem;
-  border-bottom: 1px solid var(--bulma-border, #dbdbdb);
+  border-bottom: 1px solid var(--openalex-border);
 }
 
 .openalex-modal-work-summary .openalex-result-summary {
@@ -442,7 +442,7 @@
 
 .openalex-modal-fields .openalex-result-field {
   padding: 0.9rem 0;
-  border-bottom: 1px solid var(--bulma-border, #dbdbdb);
+  border-bottom: 1px solid var(--openalex-border);
 }
 
 .openalex-modal-fields .openalex-result-field:first-child {
@@ -489,8 +489,8 @@
   min-height: 4.5rem;
   padding: 0.9rem 1.5rem;
   box-sizing: border-box;
-  background: var(--bulma-scheme-main, #ffffff);
-  border-top: 1px solid var(--bulma-border, #dbdbdb);
+  background: var(--openalex-surface);
+  border-top: 1px solid var(--openalex-border);
 }
 
 .openalex-confirm-footer .button {

@@ -3,7 +3,7 @@
  * Plugin Name: Tainacan OpenAlex
  * Plugin URI: https://github.com/tainacan/tainacan-openalex
  * Description: Search bibliographic works on OpenAlex and fill Tainacan item metadata.
- * Version: 0.4.3
+ * Version: 0.1.0
  * Author: Tainacan
  * Author URI: https://tainacan.org/
  * License: GPL v3 or later
@@ -434,7 +434,7 @@ private function get_metadata_select_options_html(array $allowed_metadata_types 
         // Mapeamento (IDs de metadados)
 $settings->create_tainacan_setting([
     'id'               => 'openalex_map_title',
-    'title'            => __('Mapping: Title → metadatum', 'tainacan-openalex'),
+    'title'            => __('Mapping: Title', 'tainacan-openalex'),
     'section'          => 'openalex_settings_section',
     'type'             => 'integer',
     'input_type'       => 'select',
@@ -451,7 +451,7 @@ $settings->create_tainacan_setting([
 
 $settings->create_tainacan_setting([
     'id'               => 'openalex_map_authors',
-    'title'            => __('Mapping: Authors → metadatum', 'tainacan-openalex'),
+    'title'            => __('Mapping: Authors', 'tainacan-openalex'),
     'section'          => 'openalex_settings_section',
     'type'             => 'integer',
     'input_type'       => 'select',
@@ -470,7 +470,7 @@ $settings->create_tainacan_setting([
 
 $settings->create_tainacan_setting([
     'id'               => 'openalex_map_year',
-    'title'            => __('Mapping: Year → metadatum', 'tainacan-openalex'),
+    'title'            => __('Mapping: Year', 'tainacan-openalex'),
     'section'          => 'openalex_settings_section',
     'type'             => 'integer',
     'input_type'       => 'select',
@@ -488,7 +488,7 @@ $settings->create_tainacan_setting([
 
 $settings->create_tainacan_setting([
     'id'               => 'openalex_map_doi',
-    'title'            => __('Mapping: DOI → metadatum', 'tainacan-openalex'),
+    'title'            => __('Mapping: DOI', 'tainacan-openalex'),
     'section'          => 'openalex_settings_section',
     'type'             => 'integer',
     'input_type'       => 'select',
@@ -505,7 +505,7 @@ $settings->create_tainacan_setting([
 
 $settings->create_tainacan_setting([
     'id'               => 'openalex_map_venue',
-    'title'            => __('Mapping: Journal/Venue → metadatum', 'tainacan-openalex'),
+    'title'            => __('Mapping: Journal/Venue', 'tainacan-openalex'),
     'section'          => 'openalex_settings_section',
     'type'             => 'integer',
     'input_type'       => 'select',
@@ -524,7 +524,7 @@ $settings->create_tainacan_setting([
 
 $settings->create_tainacan_setting([
     'id'               => 'openalex_map_url',
-    'title'            => __('Mapping: URL → metadatum', 'tainacan-openalex'),
+    'title'            => __('Mapping: URL', 'tainacan-openalex'),
     'section'          => 'openalex_settings_section',
     'type'             => 'integer',
     'input_type'       => 'select',
@@ -541,7 +541,7 @@ $settings->create_tainacan_setting([
 
 $settings->create_tainacan_setting([
     'id'               => 'openalex_map_abnt',
-    'title'            => __('Mapping: ABNT reference → metadatum', 'tainacan-openalex'),
+    'title'            => __('Mapping: ABNT reference', 'tainacan-openalex'),
     'section'          => 'openalex_settings_section',
     'type'             => 'integer',
     'input_type'       => 'select',
